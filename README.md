@@ -1,4 +1,4 @@
-# MOMCTS-MolGen
+# MOMolGen
 
 TODO: add some introduction words
 
