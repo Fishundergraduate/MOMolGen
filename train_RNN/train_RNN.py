@@ -1,34 +1,37 @@
 import csv
-import itertools
-import operator
+#import itertools
+#import operator
 import numpy as np
-import nltk
+#import nltk
 import os
-import sys
-from datetime import datetime
+#import sys
+#from datetime import datetime
 from keras.models import Sequential
 from keras.layers import Dense, Activation,TimeDistributed
 from keras.layers import LSTM,GRU
-from keras.layers.embeddings import Embedding
+#from keras.layers.embeddings import Embedding
+from keras.layers import Embedding
 from keras.optimizers import RMSprop, Adam
 from keras.utils.data_utils import get_file
 from keras.layers import Dropout
 import numpy as np
-import random
-import sys
+#import random
+#import sys
 from keras.utils.np_utils import to_categorical
-from keras.preprocessing import sequence
+#from keras.preprocessing import sequence
 from keras.models import model_from_json
 #from make_smile import ziprocess_organic,process_zinc_data
 from make_smile import zinc_data_with_bracket_original,zinc_processed_with_bracket
 
 from keras.layers import Conv1D, MaxPooling1D
 #from combine_bond_atom import organic, process_organic,bond_atom
+from keras.utils import pad_sequences
+
 
 def load_data():
 
     sen_space=[]
-    f = open('/Users/yang/smiles.csv', 'rb')
+    f = open(os.path.join(__file__,'/../data/smile_trainning.csv'), 'rb')
     reader = csv.reader(f)
     for row in reader:
         #word_space[row].append(reader[row])
@@ -91,7 +94,7 @@ def load_data():
     return val, all_smile
 
 
-def organic_data():
+""" def organic_data():
     sen_space=[]
     #f = open('/Users/yang/smiles.csv', 'rb')
     f = open('/Users/yang/LSTM-chemical-project/make_sm.csv', 'rb')
@@ -156,7 +159,7 @@ def organic_data():
     val.insert(0,"\n")
 
     return val, all_smile
-
+ """
 
 def prepare_data(smiles,all_smile):
     all_smile_index=[]
@@ -176,7 +179,7 @@ def prepare_data(smiles,all_smile):
 
     return X_train,y_train
 
-
+"""
 def generate_smile(model,val):
     end="\n"
     start_smile_index= [val.index("C")]
@@ -200,7 +203,7 @@ def generate_smile(model,val):
         new_smile.append(sampled_word)
     #sentence_str = [index_to_word[x] for x in new_sentence[1:-1]]
     #return new_sentence
-
+"""
 
 
 def save_model(model):
@@ -221,11 +224,14 @@ if __name__ == "__main__":
   
     maxlen=81
 
-
-    X= sequence.pad_sequences(X_train, maxlen=81, dtype='int32',
+    X = pad_sequences(X_train, maxlen=81, dtype='int32',
         padding='post', truncating='pre', value=0.)
-    y = sequence.pad_sequences(y_train, maxlen=81, dtype='int32',
+    y = pad_sequences(y_train, maxlen=81, dtype='int32',
         padding='post', truncating='pre', value=0.)
+    #X= sequence.pad_sequences(X_train, maxlen=81, dtype='int32',
+    #    padding='post', truncating='pre', value=0.)
+    #y = sequence.pad_sequences(y_train, maxlen=81, dtype='int32',
+    #    padding='post', truncating='pre', value=0.)
     
     
     y_train_one_hot = np.array([to_categorical(sent_label, num_classes=len(valcabulary)) for sent_label in y])

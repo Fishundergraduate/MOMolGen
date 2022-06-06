@@ -3,13 +3,16 @@
 TODO: add some introduction words
 
 ## Requirements
-1. [Python](https://www.anaconda.com/download/)==3.7, some errors show up in newer version of python.
+1. [Python](https://www.anaconda.com/download/)==3.9, some errors show up in newer version of python. NOTICE:`init.sh` uses pyenv, if you have not installed it, you should install `python3.9-venv`
 2. [Keras](https://github.com/fchollet/keras) (version 2.0.5) If you installed the newest version of keras, some errors will show up. Please change it back to keras 2.0.5 by pip install keras==2.0.5. 
+3. (*Optional but Highly recommended) [CUDA](https://developer.nvidia.com/cuda-downloads) (version 11.7) , [cuDNN](https://developer.nvidia.com/rdp/cudnn-download) (version 8 for CUDA 11.x)
 3. tensoflow-gpu (version 1.15.2, ver>=2.0 occurred error.) 
 4. [rdkit](https://anaconda.org/rdkit/rdkit)
 5. [rDock](http://rdock.sourceforge.net/installation/)
 6. [Autodock Vina](https://vina.scripps.edu/) Make sure to add Vina into system path.
 7. [Open Babel](http://openbabel.org/wiki/Category:Installation) Make sure to add OpenBabel into system path.
+
+For installing Keras, rdkit, and other dependencies by `pip` on Virtual ENVironment, We provide `requirements.txt` and `init.sh`. After installing python, you may run `bash init.sh`.
 
 ## How to Use
 
