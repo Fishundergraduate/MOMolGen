@@ -1,23 +1,24 @@
 
 import csv
-import itertools
-import operator
-import numpy as np
-import nltk
+#import itertools
+#import operator
+#import numpy as np
+#import nltk
 import os
-from rdkit import Chem
-from rdkit.Chem import Draw
-from IPython import display
+#from rdkit import Chem
+#from rdkit.Chem import Draw
+#from IPython import display
 #import matplotlib.pyplot as plt
-from rdkit.Chem import Descriptors
+#from rdkit.Chem import Descriptors
 
 
-def zinc_data_with_bracket():
+""" def zinc_data_with_bracket():
 
     sen_space=[]
     #f = open('/Users/yang/smiles.csv', 'rb')
     #f = open('/Users/yang/LSTM-chemical-project/smile_trainning.csv', 'rb')
-    f = open('/home/yang/LSTM-chemical-project/data/250k_rndm_zinc_drugs_clean.smi', 'rb')
+    #f = open('/home/yang/LSTM-chemical-project/data/250k_rndm_zinc_drugs_clean.smi', 'rb')
+    f = open(os.path.join(os.path.dirname(__file__),'/data/250k_rndm_zinc_drugs_clean.smi','rb'))
 
     reader = csv.reader(f)
     for row in reader:
@@ -54,7 +55,7 @@ def zinc_data_with_bracket():
 
     #print len(organic_smile)
     #print organic_smile
-    return organic_smile
+    return organic_smile """
 
 def zinc_processed_with_bracket(sen_space):
     #print sen_space
@@ -129,7 +130,7 @@ def zinc_processed_with_bracket(sen_space):
 
 
 
-def zinc_logp(smile):
+""" def zinc_logp(smile):
     logp_value=[]
     compound=[]
     for i in range(len(smile)):
@@ -147,14 +148,14 @@ def zinc_logp(smile):
 
     print(max(logp_value))
     print(logp_value)
-
+ """
 
 def zinc_data_with_bracket_original():
 
     sen_space=[]
     #f = open('/Users/yang/smiles.csv', 'rb')
     #f = open('/Users/yang/LSTM-chemical-project/smile_trainning.csv', 'rb')
-    f = open('../data/250k_rndm_zinc_drugs_clean.smi', 'r')
+    f = open(os.path.dirname(__file__)+'/../data/250k_rndm_zinc_drugs_clean.smi', 'r')
 
     reader = csv.reader(f)
     for row in reader:
