@@ -27,6 +27,11 @@ from keras.layers import Conv1D, MaxPooling1D
 #from combine_bond_atom import organic, process_organic,bond_atom
 from keras.utils import pad_sequences
 
+from tensorflow import distribute, data
+
+
+
+
 
 def load_data():
 
@@ -216,6 +221,11 @@ def save_model(model):
     print("Saved model to disk")
 
 if __name__ == "__main__":
+    dataOpt = data.Options()
+    dataOpt.experimental_distribute.auto_shard_policy = data.experimental.AutoShardPolicy.DATA
+    
+    comOpt = distribute.experimental.CommunicationOptions(implementation=distribute.experimental.CommunicationImplementation.AUTO)
+    strategy = distribute.MultiWorkerMirroredStrategy(communication_options=comOpt)
     smile=zinc_data_with_bracket_original()
     valcabulary,all_smile=zinc_processed_with_bracket(smile)
     print(valcabulary)
@@ -233,10 +243,8 @@ if __name__ == "__main__":
     #y = sequence.pad_sequences(y_train, maxlen=81, dtype='int32',
     #    padding='post', truncating='pre', value=0.)
     
-    
     y_train_one_hot = np.array([to_categorical(sent_label, num_classes=len(valcabulary)) for sent_label in y])
     print (y_train_one_hot.shape)
-
     vocab_size=len(valcabulary)
     embed_size=len(valcabulary)
 
@@ -244,18 +252,22 @@ if __name__ == "__main__":
     N=X.shape[1]
 
 
-    model = Sequential()
+    with strategy.scope():
+        model = Sequential()
 
-    model.add(Embedding(input_dim=vocab_size, output_dim=len(valcabulary), input_length=N,mask_zero=False))
-    model.add(GRU(units=256, input_shape=(81,64),activation='tanh',return_sequences=True))
-    #model.add(LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True))
-    model.add(Dropout(0.2))
-    model.add(GRU(units=256,activation='tanh',return_sequences=True))
-    #model.add(LSTM(output_dim=1000, activation='sigmoid',return_sequences=True))
-    model.add(Dropout(0.2))
-    model.add(TimeDistributed(Dense(embed_size, activation='softmax')))
-    optimizer=Adam(lr=0.01)
-    print(model.summary())
-    model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+        model.add(Embedding(input_dim=vocab_size, output_dim=len(valcabulary), input_length=N,mask_zero=False))
+        model.add(GRU(units=256, input_shape=(81,64),activation='tanh',return_sequences=True))
+        #model.add(LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True))
+        model.add(Dropout(0.2))
+        model.add(GRU(units=256,activation='tanh',return_sequences=True))
+        #model.add(LSTM(output_dim=1000, activation='sigmoid',return_sequences=True))
+        model.add(Dropout(0.2))
+        model.add(TimeDistributed(Dense(embed_size, activation='softmax')))
+        optimizer=Adam(lr=0.01)
+        print(model.summary())
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+    
+    trainDataset = data.Dataset.from_tensor_slices((X, y_train_one_hot))
+    #TODO Dataset with validation
     model.fit(X,y_train_one_hot,epochs=100, batch_size=512,validation_split=0.1)
     save_model(model)
