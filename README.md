@@ -12,7 +12,7 @@ TODO: add some introduction words
 6. [Autodock Vina](https://vina.scripps.edu/) Make sure to add Vina into system path.
 7. [Open Babel](http://openbabel.org/wiki/Category:Installation) Make sure to add OpenBabel into system path.
 
-For installing Keras, rdkit, and other dependencies by `pip` on Virtual ENVironment, We provide `requirements.txt` and `init.sh`. After installing python, you may run `bash init.sh`.
+For installing Keras, rdkit, and other dependencies by `pip` on Virtual ENVironment, We provide `requirements.txt` and `init.sh` in `init` dir. After installing python, you may run `bash inits/init.sh`.
 
 ## How to Use
 
