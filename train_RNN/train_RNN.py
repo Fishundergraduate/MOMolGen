@@ -266,8 +266,11 @@ if __name__ == "__main__":
         optimizer=Adam(lr=0.01)
         print(model.summary())
         model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+<<<<<<< HEAD
     
     trainDataset = data.Dataset.from_tensor_slices((X, y_train_one_hot))
     #TODO Dataset with validation
+=======
+>>>>>>> 2f72442c10003edba06c22bccec49d910e4dabd4
     model.fit(X,y_train_one_hot,epochs=100, batch_size=512,validation_split=0.1)
     save_model(model)
