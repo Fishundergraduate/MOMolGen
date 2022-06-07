@@ -31,7 +31,7 @@ from keras.utils import pad_sequences
 def load_data():
 
     sen_space=[]
-    f = open(os.path.join(__file__,'/../data/smile_trainning.csv'), 'rb')
+    f = open(os.path.dirname(__file__)+'/../data/smile_trainning.csv', 'rb')
     reader = csv.reader(f)
     for row in reader:
         #word_space[row].append(reader[row])
@@ -247,15 +247,15 @@ if __name__ == "__main__":
     model = Sequential()
 
     model.add(Embedding(input_dim=vocab_size, output_dim=len(valcabulary), input_length=N,mask_zero=False))
-    model.add(GRU(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True))
+    model.add(GRU(units=256, input_shape=(81,64),activation='tanh',return_sequences=True))
     #model.add(LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True))
     model.add(Dropout(0.2))
-    model.add(GRU(256,activation='tanh',return_sequences=True))
+    model.add(GRU(units=256,activation='tanh',return_sequences=True))
     #model.add(LSTM(output_dim=1000, activation='sigmoid',return_sequences=True))
     model.add(Dropout(0.2))
     model.add(TimeDistributed(Dense(embed_size, activation='softmax')))
     optimizer=Adam(lr=0.01)
     print(model.summary())
     model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-    model.fit(X,y_train_one_hot,nb_epoch=100, batch_size=512,validation_split=0.1)
+    model.fit(X,y_train_one_hot,epochs=100, batch_size=512,validation_split=0.1)
     save_model(model)
