@@ -1,4 +1,5 @@
 import csv
+import datetime
 #import itertools
 #import operator
 import numpy as np
@@ -19,7 +20,9 @@ import numpy as np
 #import sys
 from keras.utils.np_utils import to_categorical
 #from keras.preprocessing import sequence
-from keras.models import model_from_json
+from keras.models import model_from_json, Model
+from keras import Input
+from keras.callbacks import TensorBoard, Callback
 #from make_smile import ziprocess_organic,process_zinc_data
 from make_smile import zinc_data_with_bracket_original,zinc_processed_with_bracket
 
@@ -28,9 +31,7 @@ from keras.layers import Conv1D, MaxPooling1D
 from keras.utils import pad_sequences
 
 from tensorflow import distribute, data
-
-
-
+import tensorflow as tf
 
 
 def load_data():
@@ -220,16 +221,89 @@ def save_model(model):
     model.save_weights("model.h5")
     print("Saved model to disk")
 
+def createModel(vocab_size: int, embed_size: int, N: int):
+        input = Input(shape=(N,))
+        x = Embedding(input_dim=vocab_size, output_dim=embed_size, input_length=N, mask_zero=True)(input)
+        x = GRU(units=256,activation='tanh',return_sequences=True)(x)
+        #x = LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True)(x)
+        x = Dropout(.2)(x)
+        x = GRU(units=256,activation='tanh',return_sequences=True)(x)
+        #x = LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True)(x)
+        x = Dropout(.2)(x)
+        x = TimeDistributed(Dense(embed_size, activation='softmax'))(x)
+        model = Model(inputs=input, outputs=x)
+
+        """ model.add(Dropout(0.2))
+        model.add(GRU(units=256,activation='tanh',return_sequences=True, input_shape=(None , )))
+        #model.add(LSTM(output_dim=1000, activation='sigmoid',return_sequences=True))
+        model.add(Dropout(0.2))
+        model.add(TimeDistributed(Dense(embed_size, activation='softmax')))"""
+        optimizer=Adam(learning_rate=0.01) 
+        
+        #print(model.summary())
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+        return model
+
+class EarlyStoppingByTimer(Callback):
+    """Stop training when the loss is at its min, i.e. the loss stops decreasing.
+
+  Arguments:
+      patience: Number of epochs to wait after min has been hit. After this
+      number of no improvement, training stops.
+  """
+    def __init__(self, patience=0, startTime=datetime.datetime.now(), timeLimit=datetime.timedelta(hours=23)):
+        super(EarlyStoppingByTimer, self).__init__()
+        self._time = startTime
+        self._timeLimit = timeLimit
+        # best_weights to store the weights at which the minimum loss occurs.
+        self.best_weights = None
+        self._recentTrainBegin = datetime.timedelta()
+
+    def on_train_begin(self, logs=None):
+        # The number of epoch it has waited when loss is no longer minimum.
+        self.wait = 0
+        # The epoch the training stops at.
+        self.stopped_epoch = 0
+        # Initialize the best as infinity.
+        self.best = np.Inf
+
+    def on_epoch_begin(self, epoch, logs=None):
+        self._recentTrainBegin = datetime.datetime.now()
+        return super().on_epoch_begin(epoch, logs)
+        
+    def on_epoch_end(self, epoch, logs=None):
+        _now = datetime.datetime.now()
+        _recentTimeDelta = _now - self._recentTrainBegin
+
+        if _now - self._time >= self._timeLimit + _recentTimeDelta:
+                self.stopped_epoch = epoch
+                self.model.stop_training = True
+                print("Saving Models in This JOB")
+                self.model.set_weights(self.best_weights)
+                self.on_train_end()
+        current = logs.get("loss")
+        if np.less(current, self.best):
+            self.best = current
+            self.wait = 0
+            # Record the best weights if current results is better (less).
+            self.best_weights = self.model.get_weights()
+
+
+    def on_train_end(self, logs=None):
+        if self.stopped_epoch > 0:
+            print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
+
 if __name__ == "__main__":
+    startTime = datetime.datetime.now()
     dataOpt = data.Options()
     dataOpt.experimental_distribute.auto_shard_policy = data.experimental.AutoShardPolicy.DATA
     
-    comOpt = distribute.experimental.CommunicationOptions(implementation=distribute.experimental.CommunicationImplementation.AUTO)
+    comOpt = distribute.experimental.CommunicationOptions(implementation=distribute.experimental.CommunicationImplementation.NCCL)
     strategy = distribute.MultiWorkerMirroredStrategy(communication_options=comOpt)
     smile=zinc_data_with_bracket_original()
     valcabulary,all_smile=zinc_processed_with_bracket(smile)
-    print(valcabulary)
-    print(len(all_smile))
+    # print(valcabulary)
+    # print(len(all_smile))
     X_train,y_train=prepare_data(valcabulary,all_smile)
   
     maxlen=81
@@ -244,7 +318,7 @@ if __name__ == "__main__":
     #    padding='post', truncating='pre', value=0.)
     
     y_train_one_hot = np.array([to_categorical(sent_label, num_classes=len(valcabulary)) for sent_label in y])
-    print (y_train_one_hot.shape)
+    # print (y_train_one_hot.shape)
     vocab_size=len(valcabulary)
     embed_size=len(valcabulary)
 
@@ -253,10 +327,10 @@ if __name__ == "__main__":
 
 
     with strategy.scope():
-        model = Sequential()
+        """ model = Sequential()
 
-        model.add(Embedding(input_dim=vocab_size, output_dim=len(valcabulary), input_length=N,mask_zero=False))
-        model.add(GRU(units=256, input_shape=(81,64),activation='tanh',return_sequences=True))
+        model.add(Embedding(input_dim=vocab_size, output_dim=len(valcabulary), input_length=N,mask_zero=False, input_shape=(None, vocab_size)))
+        model.add(GRU(units=256,activation='tanh',return_sequences=True))
         #model.add(LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True))
         model.add(Dropout(0.2))
         model.add(GRU(units=256,activation='tanh',return_sequences=True))
@@ -265,9 +339,29 @@ if __name__ == "__main__":
         model.add(TimeDistributed(Dense(embed_size, activation='softmax')))
         optimizer=Adam(lr=0.01)
         print(model.summary())
-        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy']) """
+        model = createModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
+    X_nd_train, X_nd_valid = X[:int(len(X)*0.9)], X[int(len(X)*0.9):]
+    y_nd_train_one_hot, y_nd_valid_one_hot = y_train_one_hot[:int(len(y_train_one_hot)*0.9)], y_train_one_hot[int(len(y_train_one_hot)*0.9):]
+    #print(X.shape,X_nd_train.shape,y_train_one_hot.shape,y_nd_train_one_hot.shape)
+    #print(X.dtype)
     
-    trainDataset = data.Dataset.from_tensor_slices((X, y_train_one_hot))
-    #TODO Dataset with validation
-    model.fit(X,y_train_one_hot,epochs=100, batch_size=512,validation_split=0.1)
+    trainDataset = data.Dataset.from_tensor_slices((tf.convert_to_tensor(X_nd_train,dtype=tf.int32),tf.convert_to_tensor(y_nd_train_one_hot, dtype=tf.float32))).with_options(dataOpt).batch(1)
+    validDataset = data.Dataset.from_tensor_slices((tf.convert_to_tensor(X_nd_valid, dtype=tf.int32), tf.convert_to_tensor(y_nd_valid_one_hot, dtype=tf.float32))).with_options(dataOpt).batch(1)
+    traindDataset = strategy.experimental_distribute_dataset(trainDataset)
+    validDataset = strategy.experimental_distribute_dataset(validDataset)
+    #print(trainDataset.element_spec)
+    """ print(X_nd_train[1])
+    print(y_nd_train_one_hot[1])
+    for elem in trainDataset.as_numpy_iterator():
+        print(elem)
+        break
+    print(tf.convert_to_tensor(X_nd_train,dtype=tf.int32)[1]) """
+    #TODO: Dataset with validation
+    
+    tensorboard_callback = TensorBoard(log_dir="../tensorboard_logs", profile_batch=5)
+    earlystoppingByTimer = EarlyStoppingByTimer(timeLimit=datetime.timedelta(hours=2))
+    #model.fit(x=trainDataset,validation_data=validDataset,epochs=100, batch_size=512, callbacks=[tensorboard_callback,earlystoppingByTimer])
+    #model.fit(x=X,y=y_train_one_hot,epochs=100, batch_size=512, validation_split=.1, callbacks=[tensorboard_callback,earlystoppingByTimer])
+    model.fit(x=trainDataset,epochs=100, batch_size=512, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer])
     save_model(model)
