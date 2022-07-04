@@ -1,5 +1,6 @@
 import csv
 import datetime
+import json
 #import itertools
 #import operator
 import numpy as np
@@ -296,6 +297,8 @@ class EarlyStoppingByTimer(Callback):
 
 if __name__ == "__main__":
     startTime = datetime.datetime.now()
+
+
     dataOpt = data.Options()
     dataOpt.experimental_distribute.auto_shard_policy = data.experimental.AutoShardPolicy.DATA
     
@@ -350,8 +353,8 @@ if __name__ == "__main__":
     
     trainDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_train), data.Dataset.from_tensor_slices(tf.cast(y_nd_train_one_hot, dtype=tf.float32)))).shuffle(buffer_size=N).batch(512 * strategy.num_replicas_in_sync).prefetch(data.experimental.AUTOTUNE).with_options(dataOpt)
     validDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_valid), data.Dataset.from_tensor_slices(tf.cast(y_nd_valid_one_hot, dtype=tf.float32))))                       .batch(512 * strategy.num_replicas_in_sync).prefetch(data.experimental.AUTOTUNE).with_options(dataOpt)
-    #traindDataset = strategy.experimental_distribute_dataset(trainDataset)
-    #validDataset = strategy.experimental_distribute_dataset(validDataset)
+    trainDistDataset = strategy.experimental_distribute_dataset(trainDataset)
+    validDistDataset = strategy.experimental_distribute_dataset(validDataset)
     #print(trainDataset.element_spec)
     """ print(X_nd_train[1])
     print(y_nd_train_one_hot[1])
@@ -362,9 +365,23 @@ if __name__ == "__main__":
     #TODO: Dataset with validation
     
     tensorboard_callback = TensorBoard(log_dir="../tensorboard_logs", profile_batch=5)
-    earlystoppingByTimer = EarlyStoppingByTimer(timeLimit=datetime.timedelta(hours=2))
+    
+    if os.path.isfile('config.json') :
+        config = json.load(open('config.json','r'))
+        earlystoppingByTimer = EarlyStoppingByTimer(
+            timeLimit=datetime.timedelta(
+                hours=config['limitTimerHours'],
+                minutes=config['limitTimerMinutes'],
+                seconds=config['limitTimerSeconds'])
+            )
+        if config['isLoadWeight']:
+            model.load_weights(os.path.join(os.path.curdir,config['whereisWeightFile']))
     #model.fit(x=trainDataset,validation_data=validDataset,epochs=100, batch_size=512, callbacks=[tensorboard_callback,earlystoppingByTimer])
     #model.fit(x=X,y=y_train_one_hot,epochs=100, batch_size=512, validation_split=.1, callbacks=[tensorboard_callback,earlystoppingByTimer])
     #model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer])
-    model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[earlystoppingByTimer])
+        model.fit(x=trainDistDataset,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer])
+    else:
+        earlystoppingByTimer = EarlyStoppingByTimer(timeLimit=datetime.timedelta(hours=2))
+        model.fit(x=trainDistDataset,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer])
+        
     save_model(model)
