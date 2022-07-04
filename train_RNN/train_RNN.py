@@ -251,13 +251,14 @@ class EarlyStoppingByTimer(Callback):
       patience: Number of epochs to wait after min has been hit. After this
       number of no improvement, training stops.
   """
-    def __init__(self, patience=0, startTime=datetime.datetime.now(), timeLimit=datetime.timedelta(hours=23)):
+    def __init__(self, patience=0, startTime=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9),'JST')), timeLimit=datetime.timedelta(hours=23)):
         super(EarlyStoppingByTimer, self).__init__()
         self._time = startTime
         self._timeLimit = timeLimit
         # best_weights to store the weights at which the minimum loss occurs.
         self.best_weights = None
         self._recentTrainBegin = datetime.timedelta()
+        self._JST = datetime.timezone(datetime.timedelta(hours=+9),'JST')
 
     def on_train_begin(self, logs=None):
         # The number of epoch it has waited when loss is no longer minimum.
@@ -268,11 +269,11 @@ class EarlyStoppingByTimer(Callback):
         self.best = np.Inf
 
     def on_epoch_begin(self, epoch, logs=None):
-        self._recentTrainBegin = datetime.datetime.now()
+        self._recentTrainBegin = datetime.datetime.now(self._JST)
         return super().on_epoch_begin(epoch, logs)
         
     def on_epoch_end(self, epoch, logs=None):
-        _now = datetime.datetime.now()
+        _now = datetime.datetime.now(self._JST)
         _recentTimeDelta = _now - self._recentTrainBegin
 
         if _now - self._time >= self._timeLimit + _recentTimeDelta:
@@ -298,8 +299,9 @@ if __name__ == "__main__":
     dataOpt = data.Options()
     dataOpt.experimental_distribute.auto_shard_policy = data.experimental.AutoShardPolicy.DATA
     
-    comOpt = distribute.experimental.CommunicationOptions(implementation=distribute.experimental.CommunicationImplementation.NCCL)
-    strategy = distribute.MultiWorkerMirroredStrategy(communication_options=comOpt)
+    #comOpt = distribute.experimental.CommunicationOptions(implementation=distribute.experimental.CommunicationImplementation.NCCL)
+    #strategy = distribute.MultiWorkerMirroredStrategy(communication_options=comOpt)
+    strategy = distribute.MirroredStrategy()
     smile=zinc_data_with_bracket_original()
     valcabulary,all_smile=zinc_processed_with_bracket(smile)
     # print(valcabulary)
@@ -346,10 +348,10 @@ if __name__ == "__main__":
     #print(X.shape,X_nd_train.shape,y_train_one_hot.shape,y_nd_train_one_hot.shape)
     #print(X.dtype)
     
-    trainDataset = data.Dataset.from_tensor_slices((tf.convert_to_tensor(X_nd_train,dtype=tf.int32),tf.convert_to_tensor(y_nd_train_one_hot, dtype=tf.float32))).with_options(dataOpt).batch(1)
-    validDataset = data.Dataset.from_tensor_slices((tf.convert_to_tensor(X_nd_valid, dtype=tf.int32), tf.convert_to_tensor(y_nd_valid_one_hot, dtype=tf.float32))).with_options(dataOpt).batch(1)
-    traindDataset = strategy.experimental_distribute_dataset(trainDataset)
-    validDataset = strategy.experimental_distribute_dataset(validDataset)
+    trainDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_train), data.Dataset.from_tensor_slices(tf.cast(y_nd_train_one_hot, dtype=tf.float32)))).shuffle(buffer_size=N).batch(512 * strategy.num_replicas_in_sync).prefetch(data.experimental.AUTOTUNE).with_options(dataOpt)
+    validDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_valid), data.Dataset.from_tensor_slices(tf.cast(y_nd_valid_one_hot, dtype=tf.float32))))                       .batch(512 * strategy.num_replicas_in_sync).prefetch(data.experimental.AUTOTUNE).with_options(dataOpt)
+    #traindDataset = strategy.experimental_distribute_dataset(trainDataset)
+    #validDataset = strategy.experimental_distribute_dataset(validDataset)
     #print(trainDataset.element_spec)
     """ print(X_nd_train[1])
     print(y_nd_train_one_hot[1])
@@ -363,5 +365,6 @@ if __name__ == "__main__":
     earlystoppingByTimer = EarlyStoppingByTimer(timeLimit=datetime.timedelta(hours=2))
     #model.fit(x=trainDataset,validation_data=validDataset,epochs=100, batch_size=512, callbacks=[tensorboard_callback,earlystoppingByTimer])
     #model.fit(x=X,y=y_train_one_hot,epochs=100, batch_size=512, validation_split=.1, callbacks=[tensorboard_callback,earlystoppingByTimer])
-    model.fit(x=trainDataset,epochs=100, batch_size=512, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer])
+    #model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer])
+    model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[earlystoppingByTimer])
     save_model(model)
