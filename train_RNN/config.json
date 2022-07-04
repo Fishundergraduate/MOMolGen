@@ -1,5 +1,5 @@
 {
-    "isLoadWeight": true,
+    "isLoadWeight": false,
     "whereisWeightFile": "./model.h5",
     "limitTimerHours":2,
     "limitTimerMinutes":0,
