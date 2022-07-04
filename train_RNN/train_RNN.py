@@ -351,8 +351,8 @@ if __name__ == "__main__":
     #print(X.shape,X_nd_train.shape,y_train_one_hot.shape,y_nd_train_one_hot.shape)
     #print(X.dtype)
     
-    trainDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_train), data.Dataset.from_tensor_slices(tf.cast(y_nd_train_one_hot, dtype=tf.float32)))).shuffle(buffer_size=N).batch(512 * strategy.num_replicas_in_sync).prefetch(data.experimental.AUTOTUNE).with_options(dataOpt)
-    validDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_valid), data.Dataset.from_tensor_slices(tf.cast(y_nd_valid_one_hot, dtype=tf.float32))))                       .batch(512 * strategy.num_replicas_in_sync).prefetch(data.experimental.AUTOTUNE).with_options(dataOpt)
+    trainDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_train), data.Dataset.from_tensor_slices(tf.cast(y_nd_train_one_hot, dtype=tf.float32)))).shuffle(buffer_size=N).repeat(100).batch(64 * strategy.num_replicas_in_sync).prefetch(data.experimental.AUTOTUNE)#.with_options(dataOpt)
+    validDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_valid), data.Dataset.from_tensor_slices(tf.cast(y_nd_valid_one_hot, dtype=tf.float32))))                       .repeat(100).batch(64 * strategy.num_replicas_in_sync).prefetch(data.experimental.AUTOTUNE)#.with_options(dataOpt)
     trainDistDataset = strategy.experimental_distribute_dataset(trainDataset)
     validDistDataset = strategy.experimental_distribute_dataset(validDataset)
     #print(trainDataset.element_spec)
@@ -366,8 +366,8 @@ if __name__ == "__main__":
     
     tensorboard_callback = TensorBoard(log_dir="../tensorboard_logs", profile_batch=5)
     
-    if os.path.isfile('config.json') :
-        config = json.load(open('config.json','r'))
+    if os.path.exists('./train_RNN/config.json') :
+        config = json.load(open('./train_RNN/config.json','r'))
         earlystoppingByTimer = EarlyStoppingByTimer(
             timeLimit=datetime.timedelta(
                 hours=config['limitTimerHours'],
@@ -379,9 +379,9 @@ if __name__ == "__main__":
     #model.fit(x=trainDataset,validation_data=validDataset,epochs=100, batch_size=512, callbacks=[tensorboard_callback,earlystoppingByTimer])
     #model.fit(x=X,y=y_train_one_hot,epochs=100, batch_size=512, validation_split=.1, callbacks=[tensorboard_callback,earlystoppingByTimer])
     #model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer])
-        model.fit(x=trainDistDataset,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer])
+        model.fit(x=trainDistDataset,steps_per_epoch=100,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer])
     else:
         earlystoppingByTimer = EarlyStoppingByTimer(timeLimit=datetime.timedelta(hours=2))
-        model.fit(x=trainDistDataset,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer])
+        model.fit(x=trainDistDataset,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer],steps_per_epoch=10)
         
     save_model(model)
