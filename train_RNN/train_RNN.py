@@ -101,7 +101,9 @@ def load_data():
     return val, all_smile
 
 
-""" def organic_data():
+""" 
+# UNUSED CODE
+def organic_data():
     sen_space=[]
     #f = open('/Users/yang/smiles.csv', 'rb')
     f = open('/Users/yang/LSTM-chemical-project/make_sm.csv', 'rb')
@@ -187,6 +189,7 @@ def prepare_data(smiles,all_smile):
     return X_train,y_train
 
 """
+#UNUSED CODE.
 def generate_smile(model,val):
     end="\n"
     start_smile_index= [val.index("C")]
@@ -215,14 +218,59 @@ def generate_smile(model,val):
 
 def save_model(model):
     # serialize model to JSON
-    model_json = model.to_json()
-    with open("model.json", "w") as json_file:
-        json_file.write(model_json)
+    # model_json = model.to_json()
+    # with open("model.json", "w") as json_file:
+    #     json_file.write(model_json)
     # serialize weights to HDF5
-    model.save_weights("model.h5")
+    model.save("model",save_format='tf')
     print("Saved model to disk")
 
-def createModel(vocab_size: int, embed_size: int, N: int):
+
+class MyModel(Model):
+    """
+    Override tf.keras.Models
+    """
+    def __init__(self, vocab_size, embed_size, N, *args, **kwargs):
+        super(MyModel, self).__init__(*args, **kwargs)
+        self.vocab_size = vocab_size
+        self.embed_size = embed_size
+        self.N = N
+
+        self.emb = Embedding(input_dim=self.vocab_size, output_dim=self.embed_size, input_length=self.N, mask_zero=True)
+        self.gru1 = GRU(units=256,activation='tanh',return_sequences=True)
+        self.gru2 = GRU(units=256,activation='tanh',return_sequences=True)
+        self.dout = Dropout(.2)
+        self.tDist = TimeDistributed(Dense(self.embed_size, activation='softmax'))
+
+    def call(self,inputs, training=False):
+        #inputs = Input(shape=(self.N,))
+        x = self.emb(inputs)
+        x = self.gru1(x)
+        #x = LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True)(x)
+        if training:
+            x = self.dout(x, training=training)
+        x = self.gru2(x)
+        #x = LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True)(x)
+        if training:
+            x = self.dout(x, training=training)
+        #x = TimeDistributed(Dense(self.embed_size, activation='softmax'))(x)
+        return self.tDist(x)
+        #model = Model(inputs=input, outputs=x)
+    
+class CustomLoss(tf.keras.losses.Loss):
+    """
+        If you create custom loss fuction, you have to use "reduction = tf.keras.losses.Reduction.AUTO". Without this, Losses are much higher than real losses.
+    """
+    def call(self, y_true: tf.Tensor, y_pred:tf.Tensor)-> tf.Tensor:
+        loss_obj = tf.keras.losses.CategoricalCrossentropy(
+        from_logits=True,
+        reduction=tf.keras.losses.Reduction.AUTO
+        )
+        per_example_loss = loss_obj(y_true,y_pred)
+        return tf.nn.compute_average_loss(per_example_loss)
+
+
+""" def _createModel(vocab_size: int, embed_size: int, N: int):
         input = Input(shape=(N,))
         x = Embedding(input_dim=vocab_size, output_dim=embed_size, input_length=N, mask_zero=True)(input)
         x = GRU(units=256,activation='tanh',return_sequences=True)(x)
@@ -242,9 +290,9 @@ def createModel(vocab_size: int, embed_size: int, N: int):
         optimizer=Adam(learning_rate=0.01) 
         
         #print(model.summary())
-        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+        model.compile(loss=CustomLoss(), optimizer=optimizer, metrics=['accuracy'])
         return model
-
+ """
 class EarlyStoppingByTimer(Callback):
     """Stop training when the loss is at its min, i.e. the loss stops decreasing.
 
@@ -255,7 +303,7 @@ class EarlyStoppingByTimer(Callback):
     def __init__(self, patience=0, startTime=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9),'JST')), timeLimit=datetime.timedelta(hours=23)):
         super(EarlyStoppingByTimer, self).__init__()
         self._time = startTime
-        self._timeLimit = timeLimit
+        self._timeLimit = timeLimit - datetime.timedelta(minutes=1)
         # best_weights to store the weights at which the minimum loss occurs.
         self.best_weights = None
         self._recentTrainBegin = datetime.timedelta()
@@ -277,7 +325,7 @@ class EarlyStoppingByTimer(Callback):
         _now = datetime.datetime.now(self._JST)
         _recentTimeDelta = _now - self._recentTrainBegin
 
-        if _now - self._time >= self._timeLimit + _recentTimeDelta:
+        if(_now + _recentTimeDelta) >= (self._timeLimit + self._time):
                 self.stopped_epoch = epoch
                 self.model.stop_training = True
                 print("Saving Models in This JOB")
@@ -296,8 +344,7 @@ class EarlyStoppingByTimer(Callback):
             print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
 
 if __name__ == "__main__":
-    startTime = datetime.datetime.now()
-
+    startTime = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9),'JST'))
 
     dataOpt = data.Options()
     dataOpt.experimental_distribute.auto_shard_policy = data.experimental.AutoShardPolicy.DATA
@@ -305,6 +352,8 @@ if __name__ == "__main__":
     #comOpt = distribute.experimental.CommunicationOptions(implementation=distribute.experimental.CommunicationImplementation.NCCL)
     #strategy = distribute.MultiWorkerMirroredStrategy(communication_options=comOpt)
     strategy = distribute.MirroredStrategy()
+    GLOBAL_BATCH_SIZE = 64 * strategy.num_replicas_in_sync
+
     smile=zinc_data_with_bracket_original()
     valcabulary,all_smile=zinc_processed_with_bracket(smile)
     # print(valcabulary)
@@ -331,8 +380,9 @@ if __name__ == "__main__":
     N=X.shape[1]
 
 
-    with strategy.scope():
-        """ model = Sequential()
+    #with strategy.scope():
+    """ 
+        model = Sequential()
 
         model.add(Embedding(input_dim=vocab_size, output_dim=len(valcabulary), input_length=N,mask_zero=False, input_shape=(None, vocab_size)))
         model.add(GRU(units=256,activation='tanh',return_sequences=True))
@@ -344,15 +394,23 @@ if __name__ == "__main__":
         model.add(TimeDistributed(Dense(embed_size, activation='softmax')))
         optimizer=Adam(lr=0.01)
         print(model.summary())
-        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy']) """
-        model = createModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy']) 
+    """
+    #model = MyModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
+    #model.compile(loss=_compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
+    #model.compile(loss=CustomLoss(), optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
+    #model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
     X_nd_train, X_nd_valid = X[:int(len(X)*0.9)], X[int(len(X)*0.9):]
     y_nd_train_one_hot, y_nd_valid_one_hot = y_train_one_hot[:int(len(y_train_one_hot)*0.9)], y_train_one_hot[int(len(y_train_one_hot)*0.9):]
     #print(X.shape,X_nd_train.shape,y_train_one_hot.shape,y_nd_train_one_hot.shape)
     #print(X.dtype)
     
-    trainDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_train), data.Dataset.from_tensor_slices(tf.cast(y_nd_train_one_hot, dtype=tf.float32)))).shuffle(buffer_size=N).repeat(100).batch(64 * strategy.num_replicas_in_sync).prefetch(data.experimental.AUTOTUNE)#.with_options(dataOpt)
-    validDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_valid), data.Dataset.from_tensor_slices(tf.cast(y_nd_valid_one_hot, dtype=tf.float32))))                       .repeat(100).batch(64 * strategy.num_replicas_in_sync).prefetch(data.experimental.AUTOTUNE)#.with_options(dataOpt)
+    #trainDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_train), data.Dataset.from_tensor_slices(tf.cast(y_nd_train_one_hot, dtype=tf.float32)))).shuffle(buffer_size=N).batch(GLOBAL_BATCH_SIZE).prefetch(data.experimental.AUTOTUNE).with_options(dataOpt)
+    trainDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_train), data.Dataset.from_tensor_slices(tf.cast(y_nd_train_one_hot, dtype=tf.float32)))).shuffle(buffer_size=N).batch(GLOBAL_BATCH_SIZE).with_options(dataOpt)
+    #validDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_valid), data.Dataset.from_tensor_slices(tf.cast(y_nd_valid_one_hot, dtype=tf.float32))))                       .batch(GLOBAL_BATCH_SIZE).prefetch(data.experimental.AUTOTUNE).with_options(dataOpt)
+    validDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_valid), data.Dataset.from_tensor_slices(tf.cast(y_nd_valid_one_hot, dtype=tf.float32))))                       .batch(GLOBAL_BATCH_SIZE).with_options(dataOpt)
+
+    # For MultiWorkerMirroredStrategy
     trainDistDataset = strategy.experimental_distribute_dataset(trainDataset)
     validDistDataset = strategy.experimental_distribute_dataset(validDataset)
     #print(trainDataset.element_spec)
@@ -362,26 +420,50 @@ if __name__ == "__main__":
         print(elem)
         break
     print(tf.convert_to_tensor(X_nd_train,dtype=tf.int32)[1]) """
-    #TODO: Dataset with validation
     
     tensorboard_callback = TensorBoard(log_dir="../tensorboard_logs", profile_batch=5)
-    
+    earlystoppingByTimer = EarlyStoppingByTimer()
     if os.path.exists('./train_RNN/config.json') :
         config = json.load(open('./train_RNN/config.json','r'))
         earlystoppingByTimer = EarlyStoppingByTimer(
+            startTime=startTime,
             timeLimit=datetime.timedelta(
                 hours=config['limitTimerHours'],
                 minutes=config['limitTimerMinutes'],
                 seconds=config['limitTimerSeconds'])
             )
-        if config['isLoadWeight']:
-            model.load_weights(os.path.join(os.path.curdir,config['whereisWeightFile']))
-    #model.fit(x=trainDataset,validation_data=validDataset,epochs=100, batch_size=512, callbacks=[tensorboard_callback,earlystoppingByTimer])
-    #model.fit(x=X,y=y_train_one_hot,epochs=100, batch_size=512, validation_split=.1, callbacks=[tensorboard_callback,earlystoppingByTimer])
-    #model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer])
-        model.fit(x=trainDistDataset,steps_per_epoch=100,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer])
+        with strategy.scope():
+            def compute_loss(labels, predictions):
+                loss_object = tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+                per_example_loss = loss_object(labels, predictions)
+                return tf.nn.compute_average_loss(per_example_loss, global_batch_size=GLOBAL_BATCH_SIZE)
+            init = 0
+            if config['isLoadWeight']:
+                model = tf.keras.models.load_model(os.path.join(os.path.curdir,config['whereisWeightFile']), custom_objects={"compute_loss": compute_loss})
+                init = config['last_epoch']
+                #model.compile(loss=_compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
+                #model.compile(loss="categorical_crossentropy", optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
+            else:
+                model = MyModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
+
+            model.compile(loss=compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
+            model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer],initial_epoch=init)
+    #model.fit(x=trainDataset,validation_data=validDataset,epochs=100, batch_size=512, callbacks=[tensorboard_callback,earlystoppingByTimer],initial_epoch=config["last_epoch"])
+    #model.fit(x=X,y=y_train_one_hot,epochs=100, batch_size=512, validation_split=.1, callbacks=[tensorboard_callback,earlystoppingByTimer],initial_epoch=config["last_epoch"])
+    #model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer],initial_epoch=config["last_epoch"])
+        #model.fit(x=trainDistDataset,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer],initial_epoch=config["last_epoch"])
     else:
-        earlystoppingByTimer = EarlyStoppingByTimer(timeLimit=datetime.timedelta(hours=2))
-        model.fit(x=trainDistDataset,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer],steps_per_epoch=10)
+        with strategy.scope():
+            model = MyModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
+            model.compile(loss=_compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
+            earlystoppingByTimer = EarlyStoppingByTimer(
+                startTime=startTime,timeLimit=datetime.timedelta(hours=2))
+            model.fit(x=trainDistDataset,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer],steps_per_epoch=10)
         
     save_model(model)
+
+    # Save Stopped Epoch ton config.json
+    if os.path.exists('./train_RNN/config.json'):
+        config = json.load(open('./train_RNN/config.json','r'))
+        config["last_epoch"] = earlystoppingByTimer.stopped_epoch
+        json.dump(config,open('./train_RNN/config.json','w'), indent=4, separators=(',', ': '))

@@ -1,7 +1,8 @@
 {
-    "isLoadWeight": false,
-    "whereisWeightFile": "./model.h5",
-    "limitTimerHours":2,
-    "limitTimerMinutes":0,
-    "limitTimerSeconds":0
+    "isLoadWeight": true,
+    "whereisWeightFile": "./model",
+    "limitTimerHours": 2,
+    "limitTimerMinutes": 0,
+    "limitTimerSeconds": 0,
+    "last_epoch": 0
 }
