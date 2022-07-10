@@ -1,34 +1,15 @@
 import csv
 import datetime
 import json
-#import itertools
-#import operator
 import numpy as np
-#import nltk
 import os
-#import sys
-#from datetime import datetime
-from keras.models import Sequential
-from keras.layers import Dense, Activation,TimeDistributed
-from keras.layers import LSTM,GRU
-#from keras.layers.embeddings import Embedding
-from keras.layers import Embedding
-from keras.optimizers import RMSprop, Adam
-from keras.utils.data_utils import get_file
-from keras.layers import Dropout
-import numpy as np
-#import random
-#import sys
+from keras.layers import Embedding,Dense, Activation,TimeDistributed, GRU, Dropout, Input
+from keras.optimizers import Adam
 from keras.utils.np_utils import to_categorical
-#from keras.preprocessing import sequence
-from keras.models import model_from_json, Model
-from keras import Input
+from keras.models import Model
 from keras.callbacks import TensorBoard, Callback
-#from make_smile import ziprocess_organic,process_zinc_data
 from make_smile import zinc_data_with_bracket_original,zinc_processed_with_bracket
 
-from keras.layers import Conv1D, MaxPooling1D
-#from combine_bond_atom import organic, process_organic,bond_atom
 from keras.utils import pad_sequences
 
 from tensorflow import distribute, data
@@ -41,34 +22,22 @@ def load_data():
     f = open(os.path.dirname(__file__)+'/../data/smile_trainning.csv', 'rb')
     reader = csv.reader(f)
     for row in reader:
-        #word_space[row].append(reader[row])
-        #print word_sapce
         sen_space.append(row)
-    #print sen_space
     f.close()
 
     element_table=["Cu","Ti","Zr","Ga","Ge","As","Se","Br","Si","Zn","Cl","Be","Ca","Na","Sr","Ir","Li","Rb","Cs","Fr","Be","Mg",
             "Ca","Sr","Ba","Ra","Sc","La","Ac","Ti","Zr","Nb","Ta","Db","Cr","Mo","Sg","Mn","Tc","Re","Bh","Fe","Ru","Os","Hs","Co","Rh",
             "Ir","Mt","Ni","Pd","Pt","Ds","Cu","Ag","Au","Rg","Zn","Cd","Hg","Cn","Al","Ga","In","Tl","Nh","Si","Ge","Sn","Pb","Fl",
             "As","Sb","Bi","Mc","Se","Te","Po","Lv","Cl","Br","At","Ts","He","Ne","Ar","Kr","Xe","Rn","Og"]
-    #print sen_space
     word1=sen_space[0]
     word_space=list(word1[0])
     end="\n"
-    #start="st"
-    #word_space.insert(0,end)
     word_space.append(end)
-    #print word_space
-    #print len(sen_space)
     all_smile=[]
-    #print word_space
-    #for i in range(len(all_smile)):
-
     for i in range(len(sen_space)):
         word1=sen_space[i]
         word_space=list(word1[0])
         word=[]
-        #word_space.insert(0,end)
         j=0
         while j<len(word_space):
             word_space1=[]
@@ -88,87 +57,16 @@ def load_data():
 
         word.append(end)
         all_smile.append(list(word))
-    #print all_smile
     val=[]
     for i in range(len(all_smile)):
         for j in range(len(all_smile[i])):
             if all_smile[i][j] not in val:
                 val.append(all_smile[i][j])
-    #print val
     val.remove("\n")
     val.insert(0,"\n")
 
     return val, all_smile
 
-
-""" 
-# UNUSED CODE
-def organic_data():
-    sen_space=[]
-    #f = open('/Users/yang/smiles.csv', 'rb')
-    f = open('/Users/yang/LSTM-chemical-project/make_sm.csv', 'rb')
-    #f = open('/Users/yang/LSTM-chemical-project/smile_trainning.csv', 'rb')
-    reader = csv.reader(f)
-    for row in reader:
-        #word_space[row].append(reader[row])
-        #print word_sapce
-        sen_space.append(row)
-    #print sen_space
-    f.close()
-
-    element_table=["Cu","Ti","Zr","Ga","Ge","As","Se","Br","Si","Zn","Cl","Be","Ca","Na","Sr","Ir","Li","Rb","Cs","Fr","Be","Mg",
-            "Ca","Sr","Ba","Ra","Sc","La","Ac","Ti","Zr","Nb","Ta","Db","Cr","Mo","Sg","Mn","Tc","Re","Bh","Fe","Ru","Os","Hs","Co","Rh",
-            "Ir","Mt","Ni","Pd","Pt","Ds","Cu","Ag","Au","Rg","Zn","Cd","Hg","Cn","Al","Ga","In","Tl","Nh","Si","Ge","Sn","Pb","Fl",
-            "As","Sb","Bi","Mc","Se","Te","Po","Lv","Cl","Br","At","Ts","He","Ne","Ar","Kr","Xe","Rn","Og"]
-    #print sen_space
-    word1=sen_space[0]
-    word_space=list(word1[0])
-    end="\n"
-    #start="st"
-    #word_space.insert(0,end)
-    word_space.append(end)
-    #print word_space
-    #print len(sen_space)
-    all_smile=[]
-    #print word_space
-    #for i in range(len(all_smile)):
-
-    for i in range(len(sen_space)):
-        word1=sen_space[i]
-        word_space=list(word1[0])
-        word=[]
-        #word_space.insert(0,end)
-        j=0
-        while j<len(word_space):
-            word_space1=[]
-            word_space1.append(word_space[j])
-            if j+1<len(word_space):
-                word_space1.append(word_space[j+1])
-                word_space2=''.join(word_space1)
-            else:
-                word_space1.insert(0,word_space[j-1])
-                word_space2=''.join(word_space1)
-            if word_space2 not in element_table:
-                word.append(word_space[j])
-                j=j+1
-            else:
-                word.append(word_space2)
-                j=j+2
-
-        word.append(end)
-        all_smile.append(list(word))
-    #print all_smile
-    val=[]
-    for i in range(len(all_smile)):
-        for j in range(len(all_smile[i])):
-            if all_smile[i][j] not in val:
-                val.append(all_smile[i][j])
-    #print val
-    val.remove("\n")
-    val.insert(0,"\n")
-
-    return val, all_smile
- """
 
 def prepare_data(smiles,all_smile):
     all_smile_index=[]
@@ -217,89 +115,41 @@ def generate_smile(model,val):
 
 
 def save_model(model):
+    """
+        Save model by JSON and keras scheme.
+    """
     # serialize model to JSON
-    # model_json = model.to_json()
-    # with open("model.json", "w") as json_file:
-    #     json_file.write(model_json)
+    model_json = model.to_json(indent=4, separators=(',', ': '))
+    with open("model.json", "w") as json_file:
+         json_file.write(model_json)
     # serialize weights to HDF5
     model.save("model",save_format='tf')
     print("Saved model to disk")
 
 
-class MyModel(Model):
+def _createModel(vocab_size: int, embed_size: int, N: int):
     """
-    Override tf.keras.Models
+        Create NN Model.
     """
-    def __init__(self, vocab_size, embed_size, N, *args, **kwargs):
-        super(MyModel, self).__init__(*args, **kwargs)
-        self.vocab_size = vocab_size
-        self.embed_size = embed_size
-        self.N = N
-
-        self.emb = Embedding(input_dim=self.vocab_size, output_dim=self.embed_size, input_length=self.N, mask_zero=True)
-        self.gru1 = GRU(units=256,activation='tanh',return_sequences=True)
-        self.gru2 = GRU(units=256,activation='tanh',return_sequences=True)
-        self.dout = Dropout(.2)
-        self.tDist = TimeDistributed(Dense(self.embed_size, activation='softmax'))
-
-    def call(self,inputs, training=False):
-        #inputs = Input(shape=(self.N,))
-        x = self.emb(inputs)
-        x = self.gru1(x)
-        #x = LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True)(x)
-        if training:
-            x = self.dout(x, training=training)
-        x = self.gru2(x)
-        #x = LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True)(x)
-        if training:
-            x = self.dout(x, training=training)
-        #x = TimeDistributed(Dense(self.embed_size, activation='softmax'))(x)
-        return self.tDist(x)
-        #model = Model(inputs=input, outputs=x)
-    
-class CustomLoss(tf.keras.losses.Loss):
-    """
-        If you create custom loss fuction, you have to use "reduction = tf.keras.losses.Reduction.AUTO". Without this, Losses are much higher than real losses.
-    """
-    def call(self, y_true: tf.Tensor, y_pred:tf.Tensor)-> tf.Tensor:
-        loss_obj = tf.keras.losses.CategoricalCrossentropy(
-        from_logits=True,
-        reduction=tf.keras.losses.Reduction.AUTO
-        )
-        per_example_loss = loss_obj(y_true,y_pred)
-        return tf.nn.compute_average_loss(per_example_loss)
-
-
-""" def _createModel(vocab_size: int, embed_size: int, N: int):
         input = Input(shape=(N,))
         x = Embedding(input_dim=vocab_size, output_dim=embed_size, input_length=N, mask_zero=True)(input)
         x = GRU(units=256,activation='tanh',return_sequences=True)(x)
-        #x = LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True)(x)
         x = Dropout(.2)(x)
         x = GRU(units=256,activation='tanh',return_sequences=True)(x)
-        #x = LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True)(x)
         x = Dropout(.2)(x)
         x = TimeDistributed(Dense(embed_size, activation='softmax'))(x)
         model = Model(inputs=input, outputs=x)
 
-        """ model.add(Dropout(0.2))
-        model.add(GRU(units=256,activation='tanh',return_sequences=True, input_shape=(None , )))
-        #model.add(LSTM(output_dim=1000, activation='sigmoid',return_sequences=True))
-        model.add(Dropout(0.2))
-        model.add(TimeDistributed(Dense(embed_size, activation='softmax')))"""
-        optimizer=Adam(learning_rate=0.01) 
-        
-        #print(model.summary())
-        model.compile(loss=CustomLoss(), optimizer=optimizer, metrics=['accuracy'])
         return model
- """
-class EarlyStoppingByTimer(Callback):
-    """Stop training when the loss is at its min, i.e. the loss stops decreasing.
 
-  Arguments:
-      patience: Number of epochs to wait after min has been hit. After this
-      number of no improvement, training stops.
-  """
+class EarlyStoppingByTimer(Callback):
+    """
+        Stop training when the loss is at its min, i.e. the loss stops decreasing.
+
+        Arguments:
+        patience: Number of epochs to wait after min has been hit. After this
+        number of no improvement, training stops.
+    """
     def __init__(self, patience=0, startTime=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9),'JST')), timeLimit=datetime.timedelta(hours=23)):
         super(EarlyStoppingByTimer, self).__init__()
         self._time = startTime
@@ -329,14 +179,14 @@ class EarlyStoppingByTimer(Callback):
                 self.stopped_epoch = epoch
                 self.model.stop_training = True
                 print("Saving Models in This JOB")
-                self.model.set_weights(self.best_weights)
+                #self.model.set_weights(self.best_weights)
                 self.on_train_end()
-        current = logs.get("loss")
-        if np.less(current, self.best):
-            self.best = current
-            self.wait = 0
-            # Record the best weights if current results is better (less).
-            self.best_weights = self.model.get_weights()
+        #current = logs.get("loss")
+        #if np.less(current, self.best):
+        #    self.best = current
+        #    self.wait = 0
+        #    # Record the best weights if current results is better (less).
+        #    self.best_weights = self.model.get_weights()
 
 
     def on_train_end(self, logs=None):
@@ -345,19 +195,15 @@ class EarlyStoppingByTimer(Callback):
 
 if __name__ == "__main__":
     startTime = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9),'JST'))
-
+    # set up for multi-gpu env.
     dataOpt = data.Options()
     dataOpt.experimental_distribute.auto_shard_policy = data.experimental.AutoShardPolicy.DATA
-    
-    #comOpt = distribute.experimental.CommunicationOptions(implementation=distribute.experimental.CommunicationImplementation.NCCL)
-    #strategy = distribute.MultiWorkerMirroredStrategy(communication_options=comOpt)
     strategy = distribute.MirroredStrategy()
     GLOBAL_BATCH_SIZE = 64 * strategy.num_replicas_in_sync
 
+    # prepare data from /data
     smile=zinc_data_with_bracket_original()
     valcabulary,all_smile=zinc_processed_with_bracket(smile)
-    # print(valcabulary)
-    # print(len(all_smile))
     X_train,y_train=prepare_data(valcabulary,all_smile)
   
     maxlen=81
@@ -366,64 +212,35 @@ if __name__ == "__main__":
         padding='post', truncating='pre', value=0.)
     y = pad_sequences(y_train, maxlen=81, dtype='int32',
         padding='post', truncating='pre', value=0.)
-    #X= sequence.pad_sequences(X_train, maxlen=81, dtype='int32',
-    #    padding='post', truncating='pre', value=0.)
-    #y = sequence.pad_sequences(y_train, maxlen=81, dtype='int32',
-    #    padding='post', truncating='pre', value=0.)
     
     y_train_one_hot = np.array([to_categorical(sent_label, num_classes=len(valcabulary)) for sent_label in y])
-    # print (y_train_one_hot.shape)
     vocab_size=len(valcabulary)
     embed_size=len(valcabulary)
-
-    
     N=X.shape[1]
 
-
-    #with strategy.scope():
-    """ 
-        model = Sequential()
-
-        model.add(Embedding(input_dim=vocab_size, output_dim=len(valcabulary), input_length=N,mask_zero=False, input_shape=(None, vocab_size)))
-        model.add(GRU(units=256,activation='tanh',return_sequences=True))
-        #model.add(LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True))
-        model.add(Dropout(0.2))
-        model.add(GRU(units=256,activation='tanh',return_sequences=True))
-        #model.add(LSTM(output_dim=1000, activation='sigmoid',return_sequences=True))
-        model.add(Dropout(0.2))
-        model.add(TimeDistributed(Dense(embed_size, activation='softmax')))
-        optimizer=Adam(lr=0.01)
-        print(model.summary())
-        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy']) 
-    """
-    #model = MyModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
-    #model.compile(loss=_compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
-    #model.compile(loss=CustomLoss(), optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
-    #model.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
     X_nd_train, X_nd_valid = X[:int(len(X)*0.9)], X[int(len(X)*0.9):]
     y_nd_train_one_hot, y_nd_valid_one_hot = y_train_one_hot[:int(len(y_train_one_hot)*0.9)], y_train_one_hot[int(len(y_train_one_hot)*0.9):]
-    #print(X.shape,X_nd_train.shape,y_train_one_hot.shape,y_nd_train_one_hot.shape)
-    #print(X.dtype)
     
-    #trainDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_train), data.Dataset.from_tensor_slices(tf.cast(y_nd_train_one_hot, dtype=tf.float32)))).shuffle(buffer_size=N).batch(GLOBAL_BATCH_SIZE).prefetch(data.experimental.AUTOTUNE).with_options(dataOpt)
     trainDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_train), data.Dataset.from_tensor_slices(tf.cast(y_nd_train_one_hot, dtype=tf.float32)))).shuffle(buffer_size=N).batch(GLOBAL_BATCH_SIZE).with_options(dataOpt)
-    #validDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_valid), data.Dataset.from_tensor_slices(tf.cast(y_nd_valid_one_hot, dtype=tf.float32))))                       .batch(GLOBAL_BATCH_SIZE).prefetch(data.experimental.AUTOTUNE).with_options(dataOpt)
     validDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_valid), data.Dataset.from_tensor_slices(tf.cast(y_nd_valid_one_hot, dtype=tf.float32))))                       .batch(GLOBAL_BATCH_SIZE).with_options(dataOpt)
 
-    # For MultiWorkerMirroredStrategy
+    # For MirroredStrategy, to move data to device mem.
     trainDistDataset = strategy.experimental_distribute_dataset(trainDataset)
     validDistDataset = strategy.experimental_distribute_dataset(validDataset)
-    #print(trainDataset.element_spec)
-    """ print(X_nd_train[1])
-    print(y_nd_train_one_hot[1])
-    for elem in trainDataset.as_numpy_iterator():
-        print(elem)
-        break
-    print(tf.convert_to_tensor(X_nd_train,dtype=tf.int32)[1]) """
-    
+
+    # make up callbacks
     tensorboard_callback = TensorBoard(log_dir="../tensorboard_logs", profile_batch=5)
     earlystoppingByTimer = EarlyStoppingByTimer()
+    
+    # prepare custom loss function
+    with strategy.scope():
+        def compute_loss(labels, predictions):
+            loss_object = tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+            per_example_loss = loss_object(labels, predictions)
+            return tf.nn.compute_average_loss(per_example_loss, global_batch_size=GLOBAL_BATCH_SIZE)
+    
     if os.path.exists('./train_RNN/config.json') :
+        # load configuares.
         config = json.load(open('./train_RNN/config.json','r'))
         earlystoppingByTimer = EarlyStoppingByTimer(
             startTime=startTime,
@@ -433,28 +250,19 @@ if __name__ == "__main__":
                 seconds=config['limitTimerSeconds'])
             )
         with strategy.scope():
-            def compute_loss(labels, predictions):
-                loss_object = tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
-                per_example_loss = loss_object(labels, predictions)
-                return tf.nn.compute_average_loss(per_example_loss, global_batch_size=GLOBAL_BATCH_SIZE)
             init = 0
             if config['isLoadWeight']:
                 model = tf.keras.models.load_model(os.path.join(os.path.curdir,config['whereisWeightFile']), custom_objects={"compute_loss": compute_loss})
                 init = config['last_epoch']
-                #model.compile(loss=_compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
-                #model.compile(loss="categorical_crossentropy", optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
             else:
-                model = MyModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
+                model = _createModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
 
             model.compile(loss=compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
-            model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer],initial_epoch=init)
-    #model.fit(x=trainDataset,validation_data=validDataset,epochs=100, batch_size=512, callbacks=[tensorboard_callback,earlystoppingByTimer],initial_epoch=config["last_epoch"])
-    #model.fit(x=X,y=y_train_one_hot,epochs=100, batch_size=512, validation_split=.1, callbacks=[tensorboard_callback,earlystoppingByTimer],initial_epoch=config["last_epoch"])
-    #model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer],initial_epoch=config["last_epoch"])
-        #model.fit(x=trainDistDataset,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer],initial_epoch=config["last_epoch"])
+            #model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer],initial_epoch=init)
+            model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[earlystoppingByTimer],initial_epoch=init)
     else:
         with strategy.scope():
-            model = MyModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
+            model = _createModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
             model.compile(loss=_compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
             earlystoppingByTimer = EarlyStoppingByTimer(
                 startTime=startTime,timeLimit=datetime.timedelta(hours=2))

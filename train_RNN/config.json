@@ -1,8 +1,8 @@
 {
     "isLoadWeight": true,
     "whereisWeightFile": "./model",
-    "limitTimerHours": 2,
-    "limitTimerMinutes": 0,
+    "limitTimerHours": 0,
+    "limitTimerMinutes": 10,
     "limitTimerSeconds": 0,
-    "last_epoch": 0
+    "last_epoch": 14
 }
