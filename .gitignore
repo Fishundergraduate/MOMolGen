@@ -1,3 +1,5 @@
 /.venv
 /log
 /tensorboard_logs
+/model
+*.log
