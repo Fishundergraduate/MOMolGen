@@ -1,8 +1,13 @@
 {
     "isLoadWeight": true,
+    "batchSize": 64,
+    "learningRate": 0.01,
+    "validationSplit": 0.1,
     "whereisWeightFile": "./model",
     "limitTimerHours": 0,
     "limitTimerMinutes": 10,
     "limitTimerSeconds": 0,
-    "last_epoch": 14
+    "needTensorboard": false,
+    "totalEpoch": 100,
+    "last_epoch": 68
 }
