@@ -131,16 +131,16 @@ def _createModel(vocab_size: int, embed_size: int, N: int):
     """
         Create NN Model.
     """
-        input = Input(shape=(N,))
-        x = Embedding(input_dim=vocab_size, output_dim=embed_size, input_length=N, mask_zero=True)(input)
-        x = GRU(units=256,activation='tanh',return_sequences=True)(x)
-        x = Dropout(.2)(x)
-        x = GRU(units=256,activation='tanh',return_sequences=True)(x)
-        x = Dropout(.2)(x)
-        x = TimeDistributed(Dense(embed_size, activation='softmax'))(x)
-        model = Model(inputs=input, outputs=x)
+    input = Input(shape=(N,))
+    x = Embedding(input_dim=vocab_size, output_dim=embed_size, input_length=N, mask_zero=True)(input)
+    x = GRU(units=256,activation='tanh',return_sequences=True)(x)
+    x = Dropout(.2)(x)
+    x = GRU(units=256,activation='tanh',return_sequences=True)(x)
+    x = Dropout(.2)(x)
+    x = TimeDistributed(Dense(embed_size, activation='softmax'))(x)
+    model = Model(inputs=input, outputs=x)
 
-        return model
+    return model
 
 class EarlyStoppingByTimer(Callback):
     """
@@ -199,7 +199,38 @@ if __name__ == "__main__":
     dataOpt = data.Options()
     dataOpt.experimental_distribute.auto_shard_policy = data.experimental.AutoShardPolicy.DATA
     strategy = distribute.MirroredStrategy()
-    GLOBAL_BATCH_SIZE = 64 * strategy.num_replicas_in_sync
+
+    if os.path.exists('./train_RNN/config.json') :
+        # load configuares.
+        config = json.load(open('./train_RNN/config.json','r'))
+        batchSize = config['batchSize']
+        learningRate = config['learningRate']
+        trainingSplit = 1.0 - config['validationSplit']
+        earlystoppingByTimer = EarlyStoppingByTimer(
+            startTime=startTime,
+            timeLimit=datetime.timedelta(
+                hours=config['limitTimerHours'],
+                minutes=config['limitTimerMinutes'],
+                seconds=config['limitTimerSeconds'])
+            )
+        init = config['last_epoch']
+        isLoadWeight = config['isLoadWeight']
+        whereisWeightFile = config['whereisWeightFile']
+        needTensorboard = config['needTensorboard']
+    else:
+        # set default
+        batchSize = 64
+        learningRate = .01
+        trainingSplit = 1.0 - .1
+        earlystoppingByTimer = EarlyStoppingByTimer(
+            startTime=startTime,
+            timeLimit=datetime.timedelta(
+                hours=2)
+            )
+        init = 0
+        isLoadWeight = false
+        needTensorboard = false
+    GLOBAL_BATCH_SIZE = batchSize * strategy.num_replicas_in_sync
 
     # prepare data from /data
     smile=zinc_data_with_bracket_original()
@@ -218,20 +249,21 @@ if __name__ == "__main__":
     embed_size=len(valcabulary)
     N=X.shape[1]
 
-    X_nd_train, X_nd_valid = X[:int(len(X)*0.9)], X[int(len(X)*0.9):]
-    y_nd_train_one_hot, y_nd_valid_one_hot = y_train_one_hot[:int(len(y_train_one_hot)*0.9)], y_train_one_hot[int(len(y_train_one_hot)*0.9):]
+    X_nd_train, X_nd_valid = X[:int(len(X)*trainingSplit)], X[int(len(X)*trainingSplit):]
+    y_nd_train_one_hot, y_nd_valid_one_hot = y_train_one_hot[:int(len(y_train_one_hot)*trainingSplit)], y_train_one_hot[int(len(y_train_one_hot)*trainingSplit):]
     
     trainDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_train), data.Dataset.from_tensor_slices(tf.cast(y_nd_train_one_hot, dtype=tf.float32)))).shuffle(buffer_size=N).batch(GLOBAL_BATCH_SIZE).with_options(dataOpt)
     validDataset = data.Dataset.zip((data.Dataset.from_tensor_slices(X_nd_valid), data.Dataset.from_tensor_slices(tf.cast(y_nd_valid_one_hot, dtype=tf.float32))))                       .batch(GLOBAL_BATCH_SIZE).with_options(dataOpt)
 
     # For MirroredStrategy, to move data to device mem.
-    trainDistDataset = strategy.experimental_distribute_dataset(trainDataset)
-    validDistDataset = strategy.experimental_distribute_dataset(validDataset)
+    # trainDistDataset = strategy.experimental_distribute_dataset(trainDataset)
+    # validDistDataset = strategy.experimental_distribute_dataset(validDataset)
 
     # make up callbacks
-    tensorboard_callback = TensorBoard(log_dir="../tensorboard_logs", profile_batch=5)
-    earlystoppingByTimer = EarlyStoppingByTimer()
-    
+    callbacks = [earlystoppingByTimer]
+    if needTensorboard:
+        tensorboard_callback = TensorBoard(log_dir="../tensorboard_logs", profile_batch=5)
+        callbacks.append(tensorboard_callback)
     # prepare custom loss function
     with strategy.scope():
         def compute_loss(labels, predictions):
@@ -239,34 +271,14 @@ if __name__ == "__main__":
             per_example_loss = loss_object(labels, predictions)
             return tf.nn.compute_average_loss(per_example_loss, global_batch_size=GLOBAL_BATCH_SIZE)
     
-    if os.path.exists('./train_RNN/config.json') :
-        # load configuares.
-        config = json.load(open('./train_RNN/config.json','r'))
-        earlystoppingByTimer = EarlyStoppingByTimer(
-            startTime=startTime,
-            timeLimit=datetime.timedelta(
-                hours=config['limitTimerHours'],
-                minutes=config['limitTimerMinutes'],
-                seconds=config['limitTimerSeconds'])
-            )
-        with strategy.scope():
-            init = 0
-            if config['isLoadWeight']:
-                model = tf.keras.models.load_model(os.path.join(os.path.curdir,config['whereisWeightFile']), custom_objects={"compute_loss": compute_loss})
-                init = config['last_epoch']
-            else:
-                model = _createModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
-
-            model.compile(loss=compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
-            #model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[tensorboard_callback,earlystoppingByTimer],initial_epoch=init)
-            model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=[earlystoppingByTimer],initial_epoch=init)
-    else:
-        with strategy.scope():
+        
+        if isLoadWeight:
+            model = tf.keras.models.load_model(os.path.join(os.path.curdir,whereisWeightFile), custom_objects={"compute_loss": compute_loss})
+        else:
             model = _createModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
-            model.compile(loss=_compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=.01), metrics=['accuracy'])
-            earlystoppingByTimer = EarlyStoppingByTimer(
-                startTime=startTime,timeLimit=datetime.timedelta(hours=2))
-            model.fit(x=trainDistDataset,epochs=100, validation_data=validDistDataset, callbacks=[earlystoppingByTimer],steps_per_epoch=10)
+
+        model.compile(loss=compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=learningRate), metrics=['accuracy'])
+        model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=callbacks,initial_epoch=init)
         
     save_model(model)
 
