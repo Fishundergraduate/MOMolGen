@@ -23,6 +23,11 @@ from add_node_type import chem_kn_simulation, make_input_smile,predict_smile,che
 from pygmo import hypervolume
 import copy
 
+import os
+import json
+import traceback
+import errno
+
 
 
 class chemical:
@@ -85,7 +90,7 @@ class pareto:
             del self.compounds[del_list[i]]
         self.front.append(scores)
         self.compounds.append(compound)
-        f = open("../data/present/output.txt", 'a')
+        f = open("./data/present/output.txt", 'a')
         
         print("pareto size:",len(self.front),file=f)
         print("Updated pareto front",self.front, file=f)
@@ -172,7 +177,7 @@ class Node:
         try:
             hvnum = hv.compute(ref_point)
         except:
-            f = open("../data/present/hverror_output.txt", 'a')
+            f = open("./data/present/hverror_output.txt", 'a')
             print(time.asctime( time.localtime(time.time()) ),file=f)
             print(pareto.front,file=f)
             f.close()
@@ -200,10 +205,10 @@ class Node:
             self.wins[i]+=result[i]
 
 
-def MCTS(root, verbose = False, pareto=pareto()):
-
+def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
+    # initial time-limit is 240h
     """initialization of the chemical trees and grammar trees"""
-    run_time=time.time()+3600*240
+    run_time=time.time()+time_limit_sec
     rootnode = Node(state = root)
     state = root.Clone()
     """----------------------------------------------------------------------"""
@@ -273,12 +278,12 @@ def MCTS(root, verbose = False, pareto=pareto()):
 
         """"simulation"""
         node_index,scores,valid_smile=check_node_type(new_compound)
-        f = open("../data/present/ligands.txt", 'a')
+        f = open("./data/present/ligands.txt", 'a')
         for p in valid_smile:
             print(p,file=f)
         f.close()
         
-        f = open("../data/present/scores.txt", 'a')
+        f = open("./data/present/scores.txt", 'a')
         for s in scores:
             print(s,file=f)
         f.close()
@@ -302,7 +307,7 @@ def MCTS(root, verbose = False, pareto=pareto()):
                     node_pool.append(node.childNodes[-1])
                 
                 ##node_pool.append(node.childNodes[i])
-                f = open("../data/present/depth.txt", 'a')
+                f = open("./data/present/depth.txt", 'a')
                 print(len(state.position),file=f)
                 ##depth.append(len(state.position))
                 ##print("current minmum score",min_score)
@@ -370,22 +375,33 @@ def MCTS(root, verbose = False, pareto=pareto()):
     return valid_compound
 
 
-def UCTchemical():
+def UCTchemical(time_limit_sec=3600*240):
     one_search_start_time=time.time()
     time_out=one_search_start_time+60*10
     state = chemical()
     pareto_front = pareto()
-    best = MCTS(root = state,verbose = False,pareto=pareto_front)
+    best = MCTS(root = state,verbose = False,pareto=pareto_front, time_limit_sec = time_limit_sec)
 
 
     return best
 
 
 if __name__ == "__main__":
+
+    if os.path.exists('./ligand_design/config.json') :
+        config = json.load(open('./ligand_design/config.json'))
+        isLoadTree = config['isLoadTree']
+        hours = config['limitTimeHours']
+        minutes = config['limitTimeMinutes']
+        seconds = config['limitTimeSeconds']
+        rnnModelDir = config['whereisRNNmodelDir']
+    else :
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), 'ligand_design/config.json')
+        #try: 
+        #except FileNotFoundError:
+        #    traceback.print_exc()
     smile_old=zinc_data_with_bracket_original()
     val,smile=zinc_processed_with_bracket(smile_old)
-    print(val)
-
-
-    model=loaded_model()
-    valid_compound=UCTchemical()
+    #print(val)
+    model=loaded_model(rnnModelDir)
+    valid_compound=UCTchemical(time_limit_sec=hours*3600+minutes*60+seconds)

@@ -18,13 +18,11 @@ For installing Keras, rdkit, and other dependencies by `pip` on Virtual ENVironm
 
 #### Train the RNN model
 
-1. cd train_RNN
-2. Run python train_RNN.py to train the RNN model.
+1. Run `python train_RNN/train_RNN.py` to train the RNN model.
 
 #### Molecule generate
 
-1. cd ligand_design
-2. Run python mcts_ligand.py
+1. Run python `ligand_design/mcts_ligand.py`
 
 Although MOMCTS-MolGen has an extendable objective set, the default setting of objectives is docking score, QED score, logP, and a filter on SA score.
 
