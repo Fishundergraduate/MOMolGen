@@ -3,11 +3,11 @@ import csv
 import itertools
 import operator
 import numpy as np
-import nltk
+#import nltk
 import os
 from rdkit import Chem
 from rdkit.Chem import Draw
-from IPython import display
+#from IPython import display
 ##import matplotlib.pyplot as plt
 from rdkit.Chem import Descriptors
 
