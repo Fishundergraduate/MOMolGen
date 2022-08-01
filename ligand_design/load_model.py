@@ -42,9 +42,9 @@ def prepare_data(smiles,all_smile):
     return X_train,y_train
 
 
-def loaded_model():
+def loaded_model(rnnModelDir):
 
-    json_file = open('../RNN-model2/model.json', 'r')
+    json_file = open(rnnModelDir+'model.json', 'r')
     #json_file = open('/Users/yang/LSTM-chemical-project/protein-ligand/model.json', 'r')
     loaded_model_json = json_file.read()
     json_file.close()
@@ -52,7 +52,7 @@ def loaded_model():
 
     # load weights into new model
     #loaded_model.load_weights('/Users/yang/LSTM-chemical-project/protein-ligand/model.h5')
-    loaded_model.load_weights('../RNN-model2/model.h5')
+    loaded_model.load_weights(rnnModelDir+'model.h5')
     print("Loaded model from disk")
     
     #loaded_model = load_model("../model")
@@ -74,5 +74,3 @@ def loaded_activity_model():
     print("Loaded model from disk")
 
     return loaded_model
-
-loaded_model()

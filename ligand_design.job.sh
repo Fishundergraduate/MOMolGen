@@ -9,7 +9,6 @@ module load python cuda/11.2.146 cudnn/8.1 nccl/2.8.4 gcc
 #source .venv/bin/activate
 source ~/.bashrc
 nvidia-smi --query-gpu=timestamp,name,utilization.gpu,utilization.memory,memory.used,memory.free,memory.used --format=csv -l 10 &>gpu.log &
-cd ligand_design
-python mcts_ligand.py
+python ligand_design/mcts_ligand.py
 #deactivate
 echo finish

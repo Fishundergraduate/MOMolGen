@@ -1,0 +1,7 @@
+{
+    "isLoadTree": false,
+    "whereisRNNmodelDir": "./RNN-model/",
+    "limitTimeHours": 2,
+    "limitTimeMinutes": 0,
+    "limitTimeSeconds": 0
+}
