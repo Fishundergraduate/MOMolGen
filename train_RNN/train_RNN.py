@@ -120,10 +120,11 @@ def save_model(model):
     """
     # serialize model to JSON
     model_json = model.to_json(indent=4, separators=(',', ': '))
-    with open("model.json", "w") as json_file:
+    with open("model2.json", "w") as json_file:
          json_file.write(model_json)
     # serialize weights to HDF5
-    model.save("model",save_format='tf')
+    model.save("model2.h5",save_format='h5')
+    model.save("model2",save_format='tf')
     print("Saved model to disk")
 
 
@@ -273,11 +274,11 @@ if __name__ == "__main__":
     
         
         if isLoadWeight:
-            model = tf.keras.models.load_model(os.path.join(os.path.curdir,whereisWeightFile), custom_objects={"compute_loss": compute_loss})
+            model = tf.keras.models.load_model(os.path.join(os.path.curdir,whereisWeightFile))
         else:
             model = _createModel(vocab_size=vocab_size,embed_size=embed_size,N=N)
 
-        model.compile(loss=compute_loss, optimizer=tf.keras.optimizers.Adam(learning_rate=learningRate), metrics=['accuracy'])
+        model.compile(loss=tf.keras.losses.CategoricalCrossentropy(), optimizer=tf.keras.optimizers.Adam(learning_rate=learningRate), metrics=['accuracy'])
         model.fit(x=trainDataset,epochs=100, validation_data=validDataset, callbacks=callbacks,initial_epoch=init)
         
     save_model(model)

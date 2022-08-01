@@ -1,5 +1,5 @@
 {
-    "isLoadWeight": true,
+    "isLoadWeight": false,
     "batchSize": 64,
     "learningRate": 0.01,
     "validationSplit": 0.1,
@@ -9,5 +9,5 @@
     "limitTimerSeconds": 0,
     "needTensorboard": false,
     "totalEpoch": 100,
-    "last_epoch": 68
+    "last_epoch": 19
 }

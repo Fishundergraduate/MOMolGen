@@ -10,7 +10,7 @@ import math
 import argparse
 import subprocess
 from load_model import loaded_model
-from keras.preprocessing import sequence
+from keras.utils import pad_sequences
 from rdkit import Chem
 from rdkit.Chem import QED, Draw
 from rdkit.Chem import Descriptors
@@ -49,8 +49,8 @@ def expanded_node(model,state,val):
     get_int=get_int_old
 
     x=np.reshape(get_int,(1,len(get_int)))
-    x_pad= sequence.pad_sequences(x, maxlen=82, dtype='int32',
-        padding='post', truncating='pre', value=0.)
+    #x_pad= pad_sequences(x, maxlen=82, dtype='int32',padding='post', truncating='pre', value=0.)
+    x_pad= pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
 
     for i in range(30):
         predictions=model.predict(x_pad)
@@ -115,10 +115,10 @@ def chem_kn_simulation(model,state,val,added_nodes):
         get_int=get_int_old
 
         x=np.reshape(get_int,(1,len(get_int)))
-        x_pad= sequence.pad_sequences(x, maxlen=82, dtype='int32',
-            padding='post', truncating='pre', value=0.)
+        #x_pad= pad_sequences(x, maxlen=82, dtype='int32',padding='post', truncating='pre', value=0.)
+        x_pad= pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
         while not get_int[-1] == val.index(end):
-            predictions=model.predict(x_pad)
+            predictions=model.predict(x_pad,verbose=0)
             #print "shape of RNN",predictions.shape
             preds=np.asarray(predictions[0][len(get_int)-1]).astype('float64')
             preds = np.log(preds) / 1.0
@@ -132,9 +132,10 @@ def chem_kn_simulation(model,state,val,added_nodes):
             next_int_test=sorted(range(len(a)), key=lambda i: a[i])[-10:]
             get_int.append(next_int)
             x=np.reshape(get_int,(1,len(get_int)))
-            x_pad = sequence.pad_sequences(x, maxlen=82, dtype='int32',
-                padding='post', truncating='pre', value=0.)
-            if len(get_int)>82:
+            #x_pad = pad_sequences(x, maxlen=82, dtype='int32',padding='post', truncating='pre', value=0.)
+            x_pad = pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
+            if len(get_int)>81:
+                print("len",len(get_int))
                 break
         total_generated.append(get_int)
         all_posible.extend(total_generated)
@@ -208,6 +209,8 @@ def check_node_type(new_compound):
             if molscore!=None:
                 SA_score = sascorer.calculateScore(molscore)
                 logP = Descriptors.MolLogP(molscore)
+                # TODO: add eToxPred
+                #site: https://github.com/pulimeng/eToxPred
             else:
                 SA_score=1000
                 logP = 1000
@@ -235,8 +238,10 @@ def check_node_type(new_compound):
                 m = 10**10
                 flag= True
                 try:
-                    cvt_cmd = "obabel ligand.smi -O ligand.pdbqt --gen3D -p > cvt_log.txt"
-                    subprocess.run(cvt_cmd, stdin=None, input=None, stdout=None, stderr=None, shell=False, timeout=300, check=False, universal_newlines=False)
+                    cvt_log = open("cvt_log.txt","a")
+                    cvt_cmd = ["obabel", "ligand.smi" ,"-O","ligand.pdbqt" ,"--gen3D","-p"]
+                    subprocess.run(cvt_cmd, stdin=None, input=None, stdout=cvt_log, stderr=None, shell=False, timeout=300, check=False, universal_newlines=False)
+                    cvt_log.close()
                 except:
                     flag = False
                     f = open("../data/present/error_output.txt", 'a')
@@ -245,8 +250,10 @@ def check_node_type(new_compound):
                     f.close()
                 if flag:
                     try:
-                        docking_cmd ="vina --config config.txt --num_modes=1 > log_docking.txt"
-                        subprocess.run(docking_cmd, stdin=None, input=None, stdout=None, stderr=None, shell=True, timeout=600, check=False, universal_newlines=False)
+                        vina_log = open("log_docking.txt","a")
+                        docking_cmd =["vina" ,"--config", "config.txt", "--num_modes=1"]
+                        subprocess.run(docking_cmd, stdin=None, input=None, stdout=vina_log, stderr=None, shell=True, timeout=600, check=False, universal_newlines=False)
+                        vina_log.close()
                         data = pd.read_csv('log_docking.txt', sep= "\t",header=None)
                         m = round(float(data.values[-2][0].split()[1]),2)
                     except:
