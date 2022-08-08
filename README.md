@@ -11,6 +11,7 @@ TODO: add some introduction words
 5. [rDock](http://rdock.sourceforge.net/installation/)
 6. [Autodock Vina](https://vina.scripps.edu/) Make sure to add Vina into system path.
 7. [Open Babel](http://openbabel.org/wiki/Category:Installation) Make sure to add OpenBabel into system path.
+8. [eToxPred](http://github.com/pulimeng/eToxPred) DL and untar https://github.com/pulimeng/eToxPred/raw/master/etoxpred_best_model.tar.gz into ligand_design/ for using toxcity prediction(Optional)
 
 For installing Keras, rdkit, and other dependencies by `pip` on Virtual ENVironment, We provide `requirements.txt` and `init.sh` in `init` dir. After installing python, you may run `bash inits/init.sh`.
 

@@ -3,3 +3,4 @@
 /tensorboard_logs
 /model
 *.log
+*.joblib
