@@ -1,8 +1,0 @@
-cvt_error:  Sun Jul 31 15:41:49 2022
-None
-cvt_error:  Sun Jul 31 15:41:57 2022
-None
-vina_error:  Sun Jul 31 16:18:35 2022
-None
-vina_error:  Sun Jul 31 16:19:07 2022
-None

@@ -28,6 +28,7 @@ import os
 import pandas as pd
 import traceback
 
+from joblib import load
 
 
 
@@ -53,7 +54,7 @@ def expanded_node(model,state,val):
     x_pad= pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
 
     for i in range(30):
-        predictions=model.predict(x_pad)
+        predictions=model.predict(x_pad,verbose=0)
         #print "shape of RNN",predictions.shape
         preds=np.asarray(predictions[0][len(get_int)-1]).astype('float64')
         preds = np.log(preds) / 1.0
@@ -178,6 +179,15 @@ def make_input_smile(generate_smile):
 
 
 def check_node_type(new_compound):
+    import os
+    import json
+    isUseeToxPred = False
+    if os.path.exists('./ligand_design/config.json') :
+        config = json.load(open('./ligand_design/config.json','r'))
+        isUseeToxPred = config['isUseeToxPred']
+        if isUseeToxPred:
+            eToxPredModel = load("./ligand_design/etoxpred_best_model.joblib")# TODO: extends compatibility on any location with config.json
+
     node_index=[]
     valid_compound=[]
     all_smile=[]
@@ -194,7 +204,7 @@ def check_node_type(new_compound):
     ##return node_index,score,valid_compound
     
     for i in range(len(new_compound)):
-        score = [0,0,0]
+        score = [0.,0.,0.,0.]
         try:
             ko = Chem.MolFromSmiles(new_compound[i])
             
@@ -209,7 +219,7 @@ def check_node_type(new_compound):
             if molscore!=None:
                 SA_score = sascorer.calculateScore(molscore)
                 logP = Descriptors.MolLogP(molscore)
-                # TODO: add eToxPred
+                # TODO: LogP: extends deleting BEFORE commit & push
                 #site: https://github.com/pulimeng/eToxPred
             else:
                 SA_score=1000
@@ -238,7 +248,7 @@ def check_node_type(new_compound):
                 m = 10**10
                 flag= True
                 try:
-                    cvt_log = open("cvt_log.txt","a")
+                    cvt_log = open("cvt_log.txt","w")
                     cvt_cmd = ["obabel", "ligand.smi" ,"-O","ligand.pdbqt" ,"--gen3D","-p"]
                     subprocess.run(cvt_cmd, stdin=None, input=None, stdout=cvt_log, stderr=None, shell=False, timeout=300, check=False, universal_newlines=False)
                     cvt_log.close()
@@ -250,15 +260,15 @@ def check_node_type(new_compound):
                     f.close()
                 if flag:
                     try:
-                        vina_log = open("log_docking.txt","a")
-                        docking_cmd =["vina" ,"--config", "config.txt", "--num_modes=1"]
+                        vina_log = open("log_docking.txt","w")
+                        docking_cmd =["vina --config ./ligand_design/config.txt --num_modes=1"]
                         subprocess.run(docking_cmd, stdin=None, input=None, stdout=vina_log, stderr=None, shell=True, timeout=600, check=False, universal_newlines=False)
                         vina_log.close()
                         data = pd.read_csv('log_docking.txt', sep= "\t",header=None)
                         m = round(float(data.values[-2][0].split()[1]),2)
                     except:
                         m = 10**10
-                        f = open("../data/present/error_output.txt", 'a')
+                        f = open("./data/present/error_output.txt", 'a')
                         print("vina_error: ", time.asctime( time.localtime(time.time()) ),file=f)
                         print(traceback.print_exc(),file=f)
                         f.close()
@@ -279,6 +289,20 @@ def check_node_type(new_compound):
                 except:
                     score[2]=0
                 print("binding energy value: "+str(round(m,2))+'\t'+new_compound[i])
+                
+                ## eToxPred
+                ## https://github.com/pulimeng/eToxPred/blob/master/etoxpred_predict.py
+                if isUseeToxPred:
+                    mol = Chem.AddHs(ko)
+                    fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=1024)
+                    fp_string = fp.ToBitString()
+                    tmpX = np.array(list(fp_string),dtype=float)
+                    tox_score = eToxPredModel.predict_proba(tmpX.reshape((1,1024)))[:,1]
+                    if tox_score[0] >= 0.7:
+                        continue
+                    score[3] = (1- tox_score[0])
+                    print("non tox score:",score[3])
+                
                 if m<10**10:
                     node_index.append(i)
                     valid_compound.append(new_compound[i])

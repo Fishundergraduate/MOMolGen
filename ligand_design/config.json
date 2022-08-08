@@ -1,7 +1,10 @@
 {
-    "isLoadTree": false,
+    "isLoadTree": true,
+    "whereisParetoFile":"./data/present/pareto.json",
     "whereisRNNmodelDir": "./RNN-model/",
-    "limitTimeHours": 2,
+    "limitTimeHours": 7,
     "limitTimeMinutes": 0,
-    "limitTimeSeconds": 0
+    "limitTimeSeconds": 0,
+    "isUseeToxPred": true,
+    "//" : "eToxPred must be located in ligand_design/etoxpred_best_model.joblib"
 }

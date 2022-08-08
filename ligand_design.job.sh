@@ -1,7 +1,7 @@
 #!/bin/sh
 #$ -cwd
 #$ -l s_gpu=1
-#$ -l h_rt=01:00:00
+#$ -l h_rt=8:00:00
 
 module load python cuda/11.2.146 cudnn/8.1 nccl/2.8.4 gcc
 
