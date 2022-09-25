@@ -1,6 +1,6 @@
 from subprocess import Popen, PIPE
 from math import *
-import random
+#import random
 import random as pr
 import numpy as np
 from copy import deepcopy
@@ -29,8 +29,6 @@ import traceback
 import errno
 
 import argparse
-
-import copy
 
 
 class chemical:
@@ -149,6 +147,8 @@ class Node:
             ##ucb.append(self.childNodes[i].wins/self.childNodes[i].visits+sqrt(2)*sqrt(2*log(self.visits)/self.childNodes[i].visits))
             ucb=[]
             for win in self.childNodes[i].wins:
+                if self.childNodes[i].visits == 0:
+                    self.childNodes[i].visits = 1
                 ucb.append(win/self.childNodes[i].visits+sqrt(2*log(self.visits)/self.childNodes[i].visits))
             w.append(self.childNodes[i].wcal(pareto_front,ucb))
         m = np.amax(w)
@@ -369,7 +369,8 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
                         node_pool.append(node.childNodes[j])
                 if newflag:
                     node.Addnode(nodeadded[m],state)##
-                    if len(node.childNodes) >0:
+                    print(len(node.childNodes))
+                elif len(node.childNodes) >0:
                         node_pool.append(node.childNodes[-1])
                 
                 ##node_pool.append(node.childNodes[i])
@@ -430,9 +431,8 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
         pareto_file.close()
 
         mct_file = open(dataDir+'present/tree.json', 'w')
-        savenodes = copy.deepcopy(rootnode)
-        savenodes = savenodes.preprocess_todict()
-        json.dump(savenodes.__dict__, mct_file, indent=4, separators=(',', ': '))
+        rootnode = rootnode.preprocess_todict()
+        #json.dump(rootnode.__dict__, mct_file, indent=4, separators=(',', ': '))
         mct_file.close()
 
     #print "all valid compounds:",valid_compound
@@ -463,7 +463,6 @@ def UCTchemical(time_limit_sec=3600*240):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description='search molecular')
 
     parser.add_argument('dataDir',help='path to data dir')
@@ -479,6 +478,7 @@ if __name__ == "__main__":
         minutes = config['limitTimeMinutes']
         seconds = config['limitTimeSeconds']
         rnnModelDir = config['whereisRNNmodelDir']
+        pr.seed(config['randomSeed'])
     else :
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),dataDir+'/input/python_config.json')
         #try: 
