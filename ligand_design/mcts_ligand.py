@@ -23,6 +23,14 @@ from add_node_type import chem_kn_simulation, make_input_smile,predict_smile,che
 from pygmo import hypervolume
 import copy
 
+import os
+import json
+import traceback
+import errno
+
+import argparse
+
+import copy
 
 
 class chemical:
@@ -51,11 +59,11 @@ class chemical:
 
 class pareto:
 
-    def __init__(self):
-        self.front=[]
-        self.size=0
-        self.avg=[]
-        self.compounds=[]
+    def __init__(self, front=[], size=0, avg=[], compounds=[]):
+        self.front=front
+        self.size=size
+        self.avg=avg
+        self.compounds=compounds
 
     def Dominated(self,m):
         if len(self.front) == 0:
@@ -85,7 +93,7 @@ class pareto:
             del self.compounds[del_list[i]]
         self.front.append(scores)
         self.compounds.append(compound)
-        f = open("../data/present/output.txt", 'a')
+        f = open(dataDir+"present/output.txt", 'a')
         
         print("pareto size:",len(self.front),file=f)
         print("Updated pareto front",self.front, file=f)
@@ -104,21 +112,32 @@ class pareto:
         for i in range(len(self.front)):
             for j in range(len(self.avg)):
                 self.avg[j]+=self.front[i][j]/len(self.front)
-
+    
+    @staticmethod
+    def from_dict(_filename):
+        # should check _filename exists
+        _set_file = open(_filename,'r')
+        _set_json = json.load(_set_file)
+        new_pareto = pareto(front = _set_json['front'], size=_set_json['size'], avg=_set_json['avg'], compounds=_set_json['compounds'])
+        _set_file.close()
+        print("Loaded Pareto Fronts")
+        return new_pareto
 
 
 class Node:
 
-    def __init__(self, position = None,  parent = None, state = None):
+    def __init__(self, position = None,  parent = None, state = None, childNodes=[], child=None, wins=[0,0,0], visits=0, nonvisited_atom=None, type_node= [], depth=0):
+        #super().__init__()
+        #self.__dict__ = self
         self.position = position
         self.parentNode = parent
-        self.childNodes = []
-        self.child=None
-        self.wins = [0,0,0]##
-        self.visits = 0
-        self.nonvisited_atom=state.Getatom()
-        self.type_node=[]
-        self.depth=0
+        self.childNodes = childNodes
+        self.child=child
+        self.wins = wins
+        self.visits = visits
+        self.nonvisited_atom=state.Getatom() if nonvisited_atom is None else nonvisited_atom
+        self.type_node=type_node
+        self.depth=depth
 
 
     def Selectnode(self,pareto_front):##
@@ -172,7 +191,7 @@ class Node:
         try:
             hvnum = hv.compute(ref_point)
         except:
-            f = open("../data/present/hverror_output.txt", 'a')
+            f = open("./data/present/hverror_output.txt", 'a')
             print(time.asctime( time.localtime(time.time()) ),file=f)
             print(pareto.front,file=f)
             f.close()
@@ -182,7 +201,9 @@ class Node:
     def Addnode(self, m, s):
 
         n = Node(position = m, parent = self, state = s)
-        self.childNodes.append(n)
+        if not n in self.childNodes:
+            self.childNodes.append(n) #TODO: need comment out? from 96h
+            pass
 
     def simulation(self,state):
         predicted_smile=predict_smile(model,state)
@@ -191,6 +212,33 @@ class Node:
 
         return logp,valid_smile,all_smile
 
+    #@staticmethod
+    def preprocess_todict(self):
+        """
+        preprocess to dictional serialize:
+            deleting parentNode field (for avoiding circle ref.)
+        """
+        self.parentNode = None
+        for cn in self.childNodes:
+            print(cn)
+            print(cn.depth)
+            print(cn.childNodes)
+            if self != cn:
+                cn.preprocess_todict()
+            else:
+                self.childNodes.remove(cn)
+                pass
+        return self
+
+    #@staticmethod
+    def preprocess_fromdict(self):
+        """
+        preprocess from dictional serialize:
+            adding parentNode field (for having avoided circle ref.)
+        """
+        for cn in self.childNodes:
+            cn.parentNode = self
+            cn.preprocess_fromdict()
     
 
     def Update(self, result):
@@ -198,12 +246,34 @@ class Node:
         self.visits += 1
         for i in range(len(self.wins)):
             self.wins[i]+=result[i]
+        return self
+
+    @staticmethod
+    def from_dict(_filename):
+        #must check if _filename file exists
+        _set_file = open(_filename,'r')
+        _set_json = json.load(_set_file)
+        new_root = Node(position =_set_json['position'], parentNode=None, childNodes=None, child=_set_json['child'], visits=_set_json['visits'], nonvisited_atom=_set_json['nonvisited_atom'], type_node=_set_json['type_node'], depth=_set_json['depth'])
+        _set_file.close()
+        while True:
+            new_root.childNodes #TODO:
+        print("Loaded Pareto Fronts")
+        return new_pareto
+        self.position = position
+        self.parentNode = parent
+        self.childNodes = childNodes
+        self.child=child
+        self.wins = wins
+        self.visits = visits
+        self.nonvisited_atom=state.Getatom() if nonvisited_atom is None else nonvisited_atom
+        self.type_node=type_node
+        self.depth=depth
 
 
-def MCTS(root, verbose = False, pareto=pareto()):
-
+def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
+    # initial time-limit is 240h
     """initialization of the chemical trees and grammar trees"""
-    run_time=time.time()+3600*240
+    run_time=time.time()+time_limit_sec
     rootnode = Node(state = root)
     state = root.Clone()
     """----------------------------------------------------------------------"""
@@ -222,7 +292,7 @@ def MCTS(root, verbose = False, pareto=pareto()):
     dock_score=[]
     sascore=[]
     qedscore=[]
-    default_reward = [[0,0,0]]
+    default_reward = [[0,0,0,0]]
     
     
 
@@ -272,13 +342,13 @@ def MCTS(root, verbose = False, pareto=pareto()):
 
 
         """"simulation"""
-        node_index,scores,valid_smile=check_node_type(new_compound)
-        f = open("../data/present/ligands.txt", 'a')
+        node_index,scores,valid_smile=check_node_type(new_compound,dataDir)
+        f = open(dataDir+"present/ligands.txt", 'a')
         for p in valid_smile:
             print(p,file=f)
         f.close()
         
-        f = open("../data/present/scores.txt", 'a')
+        f = open(dataDir+"present/scores.txt", 'a')
         for s in scores:
             print(s,file=f)
         f.close()
@@ -299,10 +369,11 @@ def MCTS(root, verbose = False, pareto=pareto()):
                         node_pool.append(node.childNodes[j])
                 if newflag:
                     node.Addnode(nodeadded[m],state)##
-                    node_pool.append(node.childNodes[-1])
+                    if len(node.childNodes) >0:
+                        node_pool.append(node.childNodes[-1])
                 
                 ##node_pool.append(node.childNodes[i])
-                f = open("../data/present/depth.txt", 'a')
+                f = open(dataDir+"present/depth.txt", 'a')
                 print(len(state.position),file=f)
                 ##depth.append(len(state.position))
                 ##print("current minmum score",min_score)
@@ -353,6 +424,16 @@ def MCTS(root, verbose = False, pareto=pareto()):
 
 
         """check if found the desired compound"""
+        print("End Search Epoch: ", time.asctime( time.localtime(time.time()) ))
+        pareto_file = open(dataDir+'present/pareto.json', 'w')
+        json.dump(pareto.__dict__,pareto_file, indent=4, separators=(',', ': '))
+        pareto_file.close()
+
+        mct_file = open(dataDir+'present/tree.json', 'w')
+        savenodes = copy.deepcopy(rootnode)
+        savenodes = savenodes.preprocess_todict()
+        json.dump(savenodes.__dict__, mct_file, indent=4, separators=(',', ': '))
+        mct_file.close()
 
     #print "all valid compounds:",valid_compound
     #print "all active compounds:",desired_compound
@@ -370,22 +451,41 @@ def MCTS(root, verbose = False, pareto=pareto()):
     return valid_compound
 
 
-def UCTchemical():
+def UCTchemical(time_limit_sec=3600*240):
     one_search_start_time=time.time()
     time_out=one_search_start_time+60*10
     state = chemical()
-    pareto_front = pareto()
-    best = MCTS(root = state,verbose = False,pareto=pareto_front)
+    pareto_front = pareto() if isLoadTree is False else pareto.from_dict(pareto_locate)
+    best = MCTS(root = state,verbose = False,pareto=pareto_front, time_limit_sec = time_limit_sec)
 
 
     return best
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description='search molecular')
+
+    parser.add_argument('dataDir',help='path to data dir')
+    args = parser.parse_args()
+
+    dataDir = args.dataDir
+
+    if os.path.exists(dataDir+'/input/python_config.json') :
+        config = json.load(open(dataDir+'input/python_config.json'))
+        isLoadTree = config['isLoadTree']
+        pareto_locate = dataDir+'present/pareto.json'
+        hours = config['limitTimeHours']
+        minutes = config['limitTimeMinutes']
+        seconds = config['limitTimeSeconds']
+        rnnModelDir = config['whereisRNNmodelDir']
+    else :
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),dataDir+'/input/python_config.json')
+        #try: 
+        #except FileNotFoundError:
+        #    traceback.print_exc()
     smile_old=zinc_data_with_bracket_original()
     val,smile=zinc_processed_with_bracket(smile_old)
-    print(val)
-
-
-    model=loaded_model()
-    valid_compound=UCTchemical()
+    #print(val)
+    model=loaded_model(rnnModelDir)
+    valid_compound=UCTchemical(time_limit_sec=hours*3600+minutes*60+seconds)

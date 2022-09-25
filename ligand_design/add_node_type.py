@@ -10,7 +10,7 @@ import math
 import argparse
 import subprocess
 from load_model import loaded_model
-from keras.preprocessing import sequence
+from keras.utils import pad_sequences
 from rdkit import Chem
 from rdkit.Chem import QED, Draw
 from rdkit.Chem import Descriptors
@@ -28,6 +28,7 @@ import os
 import pandas as pd
 import traceback
 
+from joblib import load
 
 
 
@@ -49,11 +50,11 @@ def expanded_node(model,state,val):
     get_int=get_int_old
 
     x=np.reshape(get_int,(1,len(get_int)))
-    x_pad= sequence.pad_sequences(x, maxlen=82, dtype='int32',
-        padding='post', truncating='pre', value=0.)
+    #x_pad= pad_sequences(x, maxlen=82, dtype='int32',padding='post', truncating='pre', value=0.)
+    x_pad= pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
 
     for i in range(30):
-        predictions=model.predict(x_pad)
+        predictions=model.predict(x_pad,verbose=0)
         #print "shape of RNN",predictions.shape
         preds=np.asarray(predictions[0][len(get_int)-1]).astype('float64')
         preds = np.log(preds) / 1.0
@@ -115,10 +116,11 @@ def chem_kn_simulation(model,state,val,added_nodes):
         get_int=get_int_old
 
         x=np.reshape(get_int,(1,len(get_int)))
-        x_pad= sequence.pad_sequences(x, maxlen=82, dtype='int32',
-            padding='post', truncating='pre', value=0.)
+        #x_pad= pad_sequences(x, maxlen=82, dtype='int32',padding='post', truncating='pre', value=0.)
+        x_pad= pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
         while not get_int[-1] == val.index(end):
-            predictions=model.predict(x_pad)
+            predictions=model.predict(x_pad,verbose=0)
+            #predictions = model(x_pad, training=False) TODO: Change This code
             #print "shape of RNN",predictions.shape
             preds=np.asarray(predictions[0][len(get_int)-1]).astype('float64')
             preds = np.log(preds) / 1.0
@@ -132,9 +134,10 @@ def chem_kn_simulation(model,state,val,added_nodes):
             next_int_test=sorted(range(len(a)), key=lambda i: a[i])[-10:]
             get_int.append(next_int)
             x=np.reshape(get_int,(1,len(get_int)))
-            x_pad = sequence.pad_sequences(x, maxlen=82, dtype='int32',
-                padding='post', truncating='pre', value=0.)
-            if len(get_int)>82:
+            #x_pad = pad_sequences(x, maxlen=82, dtype='int32',padding='post', truncating='pre', value=0.)
+            x_pad = pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
+            if len(get_int)>81:
+                print("len",len(get_int))
                 break
         total_generated.append(get_int)
         all_posible.extend(total_generated)
@@ -176,7 +179,17 @@ def make_input_smile(generate_smile):
 
 
 
-def check_node_type(new_compound):
+def check_node_type(new_compound,dataDir):
+    import os
+    import json
+    isUseeToxPred = False
+    if os.path.exists(dataDir+'input/python_config.json') :
+        config = json.load(open(dataDir+'input/python_config.json','r'))
+        proteinName = config['proteinName']
+        isUseeToxPred = config['isUseeToxPred']
+        if isUseeToxPred:
+            eToxPredModel = load("./ligand_design/etoxpred_best_model.joblib")# TODO: extends compatibility on any location with config.json
+
     node_index=[]
     valid_compound=[]
     all_smile=[]
@@ -193,7 +206,7 @@ def check_node_type(new_compound):
     ##return node_index,score,valid_compound
     
     for i in range(len(new_compound)):
-        score = [0,0,0]
+        score = [0.,0.,0.]
         try:
             ko = Chem.MolFromSmiles(new_compound[i])
             
@@ -207,13 +220,15 @@ def check_node_type(new_compound):
                 molscore=None
             if molscore!=None:
                 SA_score = sascorer.calculateScore(molscore)
-                logP = Descriptors.MolLogP(molscore)
+                # logP = Descriptors.MolLogP(molscore)
+                # TODO: LogP: extends deleting
+                #site: https://github.com/pulimeng/eToxPred
             else:
                 SA_score=1000
-                logP = 1000
+                #logP = 1000
             if SA_score<=3.5:
                 continue
-            score[1]=logP
+            #score[1]=logP
             cycle_list = nx.cycle_basis(nx.Graph(rdmolops.GetAdjacencyMatrix(MolFromSmiles(new_compound[i]))))
             if len(cycle_list) == 0:
                 cycle_length =0
@@ -224,9 +239,10 @@ def check_node_type(new_compound):
             if cycle_length==0:
                 ##m=rdock_score(new_compound[i])
                 # create SMILES file
-                with open('ligand.smi','w') as f:
+                with open(dataDir+'./workspace/ligand.smi','w') as f:
                     f.write(new_compound[i])
-
+                with open(dataDir+'./output/allLigands.txt','a', newline="\n") as f:
+                    f.write(new_compound[i]+"\n") 
                 # convert SMILES > PDBQT
                 # --gen3d: the option for generating 3D coordinate
                 #  -h: protonation
@@ -235,23 +251,27 @@ def check_node_type(new_compound):
                 m = 10**10
                 flag= True
                 try:
-                    cvt_cmd = "obabel ligand.smi -O ligand.pdbqt --gen3D -p > cvt_log.txt"
-                    subprocess.run(cvt_cmd, stdin=None, input=None, stdout=None, stderr=None, shell=False, timeout=300, check=False, universal_newlines=False)
+                    cvt_log = open(dataDir+"workspace/cvt_log.txt","w")
+                    cvt_cmd = ["obabel", dataDir+"workspace/ligand.smi" ,"-O",dataDir+"workspace/ligand.pdbqt" ,"--gen3D","-p"]
+                    subprocess.run(cvt_cmd, stdin=None, input=None, stdout=cvt_log, stderr=None, shell=False, timeout=300, check=False, universal_newlines=False)
+                    cvt_log.close()
                 except:
                     flag = False
-                    f = open("../data/present/error_output.txt", 'a')
+                    f = open(dataDir+"present/error_output.txt", 'a')
                     print("cvt_error: ", time.asctime( time.localtime(time.time()) ),file=f)
                     print(traceback.print_exc(),file=f)
                     f.close()
                 if flag:
                     try:
-                        docking_cmd ="vina --config config.txt --num_modes=1 > log_docking.txt"
-                        subprocess.run(docking_cmd, stdin=None, input=None, stdout=None, stderr=None, shell=True, timeout=600, check=False, universal_newlines=False)
-                        data = pd.read_csv('log_docking.txt', sep= "\t",header=None)
+                        vina_log = open(dataDir+"workspace/log_docking.txt","w")
+                        docking_cmd =["vina --config "+dataDir+"./input/vina_config.txt --num_modes=1 --receptor="+dataDir+"./input/"+proteinName+" --ligand="+dataDir+"./workspace/ligand.pdbqt"]#TODO: direct acess to protein file
+                        subprocess.run(docking_cmd, stdin=None, input=None, stdout=vina_log, stderr=None, shell=True, timeout=600, check=False, universal_newlines=False)
+                        vina_log.close()
+                        data = pd.read_csv(dataDir+'workspace/log_docking.txt', sep= "\t",header=None)
                         m = round(float(data.values[-2][0].split()[1]),2)
                     except:
                         m = 10**10
-                        f = open("../data/present/error_output.txt", 'a')
+                        f = open(dataDir+"./present/error_output.txt", 'a')
                         print("vina_error: ", time.asctime( time.localtime(time.time()) ),file=f)
                         print(traceback.print_exc(),file=f)
                         f.close()
@@ -268,14 +288,28 @@ def check_node_type(new_compound):
                 
                 ##qedscore
                 try:
-                    score[2]=round(QED.default(MolFromSmiles(new_compound[i])),3)
+                    score[1]=round(QED.default(MolFromSmiles(new_compound[i])),3)
                 except:
-                    score[2]=0
+                    score[1]=0
                 print("binding energy value: "+str(round(m,2))+'\t'+new_compound[i])
+                
+                ## eToxPred
+                ## https://github.com/pulimeng/eToxPred/blob/master/etoxpred_predict.py
+                if isUseeToxPred:
+                    mol = Chem.AddHs(ko)
+                    fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=1024)
+                    fp_string = fp.ToBitString()
+                    tmpX = np.array(list(fp_string),dtype=float)
+                    tox_score = eToxPredModel.predict_proba(tmpX.reshape((1,1024)))[:,1]
+                    if tox_score[0] >= 0.7:
+                        continue
+                    score[2] = (1- tox_score[0])
+                    print("non tox score:",score[2])
+                
                 if m<10**10:
                     node_index.append(i)
                     valid_compound.append(new_compound[i])
-                    score[0]=m
+                    score[0]=m # docking score
                     scores.append(score)
                 
                 

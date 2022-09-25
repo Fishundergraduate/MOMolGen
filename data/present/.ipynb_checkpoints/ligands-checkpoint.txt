@@ -1,0 +1,15 @@
+O=c1ccc(O)c2ccc(F)cc2(F)1
+O[C@]CC(=O)c1ccc(N(CCC(=O)C(=O)c2ccccc2)s1)O
+OC1SN(C)c1
+OC(=O)/C[C@@H]1CCC[C@@]1
+OC#C
+OC#N
+OC#N
+OC#N
+OC#N
+OC#N
+OC#N
+OC#N
+Oc1ccc(OC2CCCc(=O)s2)o1
+OC#N
+OCCC(=O)NSC1CC[NH+](C)[C@H]1
