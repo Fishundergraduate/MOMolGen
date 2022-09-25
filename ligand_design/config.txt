@@ -1,5 +1,5 @@
-receptor = 3zosA_prepared.pdbqt
-ligand = ligand.pdbqt
+receptor = ./ligand_design/3zosA_prepared.pdbqt
+ligand = ./ligand_design/ligand.pdbqt
 
 #binding_pocket
 center_x = -7.5

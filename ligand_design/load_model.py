@@ -2,24 +2,26 @@ import csv
 import itertools
 import operator
 import numpy as np
-import nltk
+#import nltk
 import h5py
 import os
 from datetime import datetime
-from keras.models import Sequential
-from keras.layers import Dense, Activation,TimeDistributed
-from keras.layers import LSTM,GRU
-from keras.layers.embeddings import Embedding
-from keras.optimizers import RMSprop, Adam
-from keras.utils.data_utils import get_file
-from keras.layers import Dropout
-import numpy as np
-import random
-import sys
-from keras.utils.np_utils import to_categorical
-from keras.preprocessing import sequence
+#from keras.models import Sequential
+#from keras.layers import Dense, Activation,TimeDistributed
+#from keras.layers import LSTM,GRU
+#from keras.layers.embeddings import Embedding
+#from keras.optimizers import RMSprop, Adam
+#from keras.utils.data_utils import get_file
+#from keras.layers import Dropout
+#import numpy as np
+#import random
+#import sys
+#from keras.utils.np_utils import to_categorical
+#from keras.preprocessing import sequence
 from keras.models import model_from_json
 from make_smile import zinc_data_with_bracket, zinc_processed_with_bracket
+
+from keras.models import load_model
 
 def prepare_data(smiles,all_smile):
     all_smile_index=[]
@@ -40,9 +42,9 @@ def prepare_data(smiles,all_smile):
     return X_train,y_train
 
 
-def loaded_model():
+def loaded_model(rnnModelDir):
 
-    json_file = open('../RNN-model/model.json', 'r')
+    json_file = open(rnnModelDir+'model.json', 'r')
     #json_file = open('/Users/yang/LSTM-chemical-project/protein-ligand/model.json', 'r')
     loaded_model_json = json_file.read()
     json_file.close()
@@ -50,10 +52,10 @@ def loaded_model():
 
     # load weights into new model
     #loaded_model.load_weights('/Users/yang/LSTM-chemical-project/protein-ligand/model.h5')
-    loaded_model.load_weights('../RNN-model/model.h5')
+    loaded_model.load_weights(rnnModelDir+'model.h5')
     print("Loaded model from disk")
     
-
+    #loaded_model = load_model("../model")
     return loaded_model
 
 def loaded_activity_model():
@@ -72,5 +74,3 @@ def loaded_activity_model():
     print("Loaded model from disk")
 
     return loaded_model
-
-loaded_model()
