@@ -1,8 +1,8 @@
 {
-    "isLoadTree": true,
+    "isLoadTree": false,
     "whereisParetoFile":"./data/present/pareto.json",
     "whereisRNNmodelDir": "./RNN-model/",
-    "limitTimeHours": 7,
+    "limitTimeHours": 8,
     "limitTimeMinutes": 0,
     "limitTimeSeconds": 0,
     "isUseeToxPred": true,

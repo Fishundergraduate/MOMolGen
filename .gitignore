@@ -4,3 +4,11 @@
 /model
 *.log
 *.joblib
+*/.ipynb_checkpoints
+/data*/
+/log*/
+*.job.sh.e*
+*.job.sh.o*
+.ipynb_checkpoints/ligand_design.job.sh-checkpoint.e11802001
+.gitignore
+.ipynb_checkpoints/ligand_design.job.sh-checkpoint.o11802001
