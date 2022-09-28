@@ -226,7 +226,8 @@ def check_node_type(new_compound,dataDir):
             else:
                 SA_score=1000
                 #logP = 1000
-            if SA_score<=3.5:
+            #if SA_score<=3.5:#TODO: Changed This Code.
+            if SA_score>=3.5:#TODO: Changed This Code.
                 continue
             #score[1]=logP
             cycle_list = nx.cycle_basis(nx.Graph(rdmolops.GetAdjacencyMatrix(MolFromSmiles(new_compound[i]))))

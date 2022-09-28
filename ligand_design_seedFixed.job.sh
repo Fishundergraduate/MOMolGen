@@ -1,6 +1,6 @@
 #!/bin/sh
 #$ -cwd
-#$ -l s_gpu=1
+#$ -l f_node=1
 #$ -l h_rt=24:00:00
 
 sleep 23h 45m && curl -X POST https://maker.ifttt.com/trigger/JOB_FINISH/with/key/bD0xPz0Ajd2SWn6JVoww3w/ &
