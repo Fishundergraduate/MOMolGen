@@ -1,4 +1,6 @@
+<<<<<<< HEAD
 import csv
+import datetime
 import datetime
 import json
 import numpy as np
@@ -127,6 +129,78 @@ def save_model(model):
     model.save("model2",save_format='tf')
     print("Saved model to disk")
 
+def createModel(vocab_size: int, embed_size: int, N: int):
+        input = Input(shape=(N,))
+        x = Embedding(input_dim=vocab_size, output_dim=embed_size, input_length=N)(input)
+        x = GRU(units=256,activation='tanh',return_sequences=True)(x)
+        #x = LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True)(x)
+        x = Dropout(.2)(x)
+        x = GRU(units=256,activation='tanh',return_sequences=True)(x)
+        #x = LSTM(output_dim=256, input_shape=(81,64),activation='tanh',return_sequences=True)(x)
+        x = Dropout(.2)(x)
+        x = TimeDistributed(Dense(embed_size, activation='softmax'))(x)
+        model = Model(inputs=input, outputs=x)
+
+        """ model.add(Dropout(0.2))
+        model.add(GRU(units=256,activation='tanh',return_sequences=True, input_shape=(None , )))
+        #model.add(LSTM(output_dim=1000, activation='sigmoid',return_sequences=True))
+        model.add(Dropout(0.2))
+        model.add(TimeDistributed(Dense(embed_size, activation='softmax')))"""
+        optimizer=Adam(lr=0.01) 
+        
+        print(model.summary())
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+        return model
+
+class EarlyStoppingByTimer(Callback):
+    """Stop training when the loss is at its min, i.e. the loss stops decreasing.
+
+  Arguments:
+      patience: Number of epochs to wait after min has been hit. After this
+      number of no improvement, training stops.
+  """
+    def __init__(self, patience=0, startTime=datetime.datetime.now(), timeLimit=datetime.timedelta(hours=23)):
+        super(EarlyStoppingByTimer, self).__init__()
+        self._time = startTime
+        self._timeLimit = timeLimit
+        # best_weights to store the weights at which the minimum loss occurs.
+        self.best_weights = None
+        self._recentTrainBegin = datetime.timedelta()
+
+    def on_train_begin(self, logs=None):
+        # The number of epoch it has waited when loss is no longer minimum.
+        self.wait = 0
+        # The epoch the training stops at.
+        self.stopped_epoch = 0
+        # Initialize the best as infinity.
+        self.best = np.Inf
+
+    def on_epoch_begin(self, epoch, logs=None):
+        self._recentTrainBegin = datetime.datetime.now()
+        return super().on_epoch_begin(epoch, logs)
+        
+    def on_epoch_end(self, epoch, logs=None):
+        _now = datetime.datetime.now()
+        _recentTimeDelta = _now - self._recentTrainBegin
+
+        if _now - self._time >= self._timeLimit + _recentTimeDelta:
+                self.stopped_epoch = epoch
+                self.model.stop_training = True
+                print("Saving Models in This JOB")
+                self.model.set_weights(self.best_weights)
+                self.on_train_end()
+        current = logs.get("loss")
+        if np.less(current, self.best):
+            self.best = current
+            self.wait = 0
+            # Record the best weights if current results is better (less).
+            self.best_weights = self.model.get_weights()
+
+
+    def on_train_end(self, logs=None):
+        if self.stopped_epoch > 0:
+            print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
+
 
 def _createModel(vocab_size: int, embed_size: int, N: int):
     """
@@ -195,6 +269,7 @@ class EarlyStoppingByTimer(Callback):
             print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
 
 if __name__ == "__main__":
+    startTime = datetime.datetime.now()
     startTime = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9),'JST'))
     # set up for multi-gpu env.
     dataOpt = data.Options()
@@ -267,7 +342,7 @@ if __name__ == "__main__":
         callbacks.append(tensorboard_callback)
     # prepare custom loss function
     with strategy.scope():
-        def compute_loss(labels, predictions):
+        """ def compute_loss(labels, predictions):
             loss_object = tf.keras.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
             per_example_loss = loss_object(labels, predictions)
             return tf.nn.compute_average_loss(per_example_loss, global_batch_size=GLOBAL_BATCH_SIZE)
