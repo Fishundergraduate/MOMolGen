@@ -187,6 +187,7 @@ def check_node_type(new_compound,dataDir):
         config = json.load(open(dataDir+'input/python_config.json','r'))
         proteinName = config['proteinName']
         isUseeToxPred = config['isUseeToxPred']
+        saThreshold = config['saThreshold']
         if isUseeToxPred:
             eToxPredModel = load("./ligand_design/etoxpred_best_model.joblib")# TODO: extends compatibility on any location with config.json
 
@@ -209,7 +210,7 @@ def check_node_type(new_compound,dataDir):
         score = [0.,0.,0.]
         try:
             ko = Chem.MolFromSmiles(new_compound[i])
-            #TODO: try-except revise
+            
         except:
             ko=None
         
@@ -220,16 +221,15 @@ def check_node_type(new_compound,dataDir):
                 molscore=None
             if molscore!=None:
                 SA_score = sascorer.calculateScore(molscore)
-                logP = Descriptors.MolLogP(molscore)
+                # logP = Descriptors.MolLogP(molscore)
                 # TODO: LogP: extends deleting
                 #site: https://github.com/pulimeng/eToxPred
             else:
                 SA_score=1000
-                logP = 1000
-            if SA_score<=3.5:#TODO: Changed This Code.
-            #if SA_score>=3.5:#TODO: Changed This Code.
+                #logP = 1000
+            if SA_score>=3.5:
                 continue
-            score[1]=logP
+            #score[1]=logP
             cycle_list = nx.cycle_basis(nx.Graph(rdmolops.GetAdjacencyMatrix(MolFromSmiles(new_compound[i]))))
             if len(cycle_list) == 0:
                 cycle_length =0
@@ -251,6 +251,7 @@ def check_node_type(new_compound,dataDir):
                 ##os.system(cvt_cmd)
                 m = 10**10
                 flag= True
+                t1 = time.time()
                 try:
                     cvt_log = open(dataDir+"workspace/cvt_log.txt","w")
                     cvt_cmd = ["obabel", dataDir+"workspace/ligand.smi" ,"-O",dataDir+"workspace/ligand.pdbqt" ,"--gen3D","-p"]
@@ -278,6 +279,9 @@ def check_node_type(new_compound,dataDir):
                         f.close()
                 else:
                     m = 10**10
+                t2 = time.time()
+                with open(dataDir+'./output/allLigands.txt','a', newline="\n") as f:
+                    f.write(t2-t1+"[sec]\n") 
 
                 # docking
                 
@@ -289,9 +293,9 @@ def check_node_type(new_compound,dataDir):
                 
                 ##qedscore
                 try:
-                    score[2]=round(QED.default(MolFromSmiles(new_compound[i])),3)
+                    score[1]=round(QED.default(MolFromSmiles(new_compound[i])),3)
                 except:
-                    score[2]=0
+                    score[1]=0
                 print("binding energy value: "+str(round(m,2))+'\t'+new_compound[i])
                 
                 ## eToxPred
