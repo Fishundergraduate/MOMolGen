@@ -137,7 +137,6 @@ def chem_kn_simulation(model,state,val,added_nodes):
             #x_pad = pad_sequences(x, maxlen=82, dtype='int32',padding='post', truncating='pre', value=0.)
             x_pad = pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
             if len(get_int)>81:
-                print("len",len(get_int))
                 break
         total_generated.append(get_int)
         all_posible.extend(total_generated)
