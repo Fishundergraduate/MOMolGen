@@ -26,6 +26,9 @@ with open(tDir+'/input/python_config.json','r+') as f:
     config['//'] = "eToxPred must be located in ligand_design/etoxpred_best_model.joblib"
     json.dump(config,f, indent=4, separators=(',', ': '))
 
+with open(tDir+"/output/allproducts.txt","w") as f:
+    f.write('')
+
 with open(tDir+"/output/allLigands.txt","w") as f:
     f.write('')
 
