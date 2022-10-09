@@ -287,7 +287,7 @@ class Node:
         self.depth=depth
 
 
-def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
+def MCTS(root, pareto=pareto(), time_limit_sec=3600*240):
     # initial time-limit is 240h
     """initialization of the chemical trees and grammar trees"""
     run_time=time.time()+time_limit_sec
@@ -477,7 +477,7 @@ def UCTchemical(time_limit_sec=3600*240):
     time_out=one_search_start_time+60*10
     state = chemical()
     pareto_front = pareto() if isLoadTree is False else pareto.from_dict(pareto_locate)
-    best = MCTS(root = state,verbose = False,pareto=pareto_front, time_limit_sec = time_limit_sec)
+    best = MCTS(root = state,pareto=pareto_front, time_limit_sec = time_limit_sec)
 
 
     return best
