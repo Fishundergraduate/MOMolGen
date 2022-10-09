@@ -30,8 +30,8 @@ import errno
 
 import argparse
 
-import copy
-
+from joblib import Parallel, delayed
+import pdb
 
 class chemical:
 
@@ -122,8 +122,12 @@ class pareto:
         _set_file.close()
         print("Loaded Pareto Fronts")
         return new_pareto
-
-
+_pareto_temp = [[]]
+def _positiveParetoTemp(i):
+    global _pareto_temp
+    for j in range(0,len(_pareto_temp[0])):
+        _pareto_temp[i][j] = -_pareto_temp[i][j] if _pareto_temp[i][j]>0 else -0.00000000000000001
+    return _pareto_temp[i]
 class Node:
 
     def __init__(self, position = None,  parent = None, state = None, childNodes=[], child=None, wins=[0,0,0], visits=0, nonvisited_atom=None, type_node= [], depth=0):
@@ -174,18 +178,30 @@ class Node:
 
         return sqrt(distance)
 
+
+    
+
+
     def hvcal(self,pareto,ucb):## cal hypervolume indicator
         if len(pareto.front) == 0:
             return 0
-        pareto_temp = copy.deepcopy(pareto.front)
-        pareto_temp.append(ucb)
-        for i in range(len(pareto_temp)):
-            for j in range(len(pareto_temp[0])):
-                if(pareto_temp[i][j]>0):
-                    pareto_temp[i][j] = -pareto_temp[i][j]
+        global _pareto_temp
+        _pareto_temp = copy.deepcopy(pareto.front)
+        _pareto_temp.append(ucb)
+        """ for i in range(len(_pareto_temp)):
+            for j in range(len(_pareto_temp[0])):
+                print(i,j)
+                print(_pareto_temp[i][j])
+                _positiveParetoTemp(i,j) """
+        #pdb.set_trace()
+        _pareto_temp = Parallel(n_jobs=-1,verbose=0)([delayed(_positiveParetoTemp)(i) for i in range(0,len(_pareto_temp))])
+        """ for i in range(len(_pareto_temp)):
+            for j in range(len(_pareto_temp[0])):
+                if(_pareto_temp[i][j]>0):
+                    _pareto_temp[i][j] = -_pareto_temp[i][j]
                 else:
-                    pareto_temp[i][j] = -0.00000000000000001
-        hv = hypervolume(pareto_temp)
+                    _pareto_temp[i][j] = -0.00000000000000001 """
+        hv = hypervolume(_pareto_temp)
         ref_point = [0,0,0]
         hvnum = 0
         try:
@@ -196,6 +212,7 @@ class Node:
             print(pareto.front,file=f)
             f.close()
         ##print(hvnum)
+        #pdb.set_trace()
         return hvnum
 
     def Addnode(self, m, s):
@@ -305,11 +322,15 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
         """selection step"""
         node_pool=[]
         
-        
         while node.childNodes!=[]:
+            #pdb.set_trace()
             if not int(pow(node.visits +1, 0.5))==int(pow(node.visits, 0.5)):
                 break
-            node = node.Selectnode(pareto)
+            new_node = node.Selectnode(pareto)
+            if new_node == node:
+                node = new_node
+                break
+            node = new_node
             state.SelectPosition(node.position)
         print("state position:,",state.position)
 
@@ -398,13 +419,13 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
                 base_dock_score = 0## need set for every compound
                 scores[i][0]=-round(((scores[i][0] - base_dock_score)*0.1)/(1+abs((scores[i][0] - base_dock_score)*0.1)),3)## docking score
                 
-                '''scores[1] Log P'''
+                '''scores[1] QED'''
                 ##scores[i][1]=round(1-scores[i][1]/10,3)## For SA score
-                logpcenter= 1.4
-                scores[i][1] = 1 - pow((0.5*(scores[i][1]-logpcenter)),2)
-                if scores[i][1]<0:
-                    scores[i][1]=0
-                '''scores[2] QED score'''
+                #logpcenter= 1.4
+                #scores[i][1] = 1 - pow((0.5*(scores[i][1]-logpcenter)),2) ## For logP
+                #if scores[i][1]<0:
+                #    scores[i][1]=0
+                '''scores[2] etoxpred'''
 
                 if pareto.Dominated(scores[i]) == False:
                     pareto.Update(scores[i],valid_smile[i])
@@ -429,11 +450,11 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
         json.dump(pareto.__dict__,pareto_file, indent=4, separators=(',', ': '))
         pareto_file.close()
 
-        mct_file = open(dataDir+'present/tree.json', 'w')
+        """ mct_file = open(dataDir+'present/tree.json', 'w')
         savenodes = copy.deepcopy(rootnode)
         savenodes = savenodes.preprocess_todict()
         json.dump(savenodes.__dict__, mct_file, indent=4, separators=(',', ': '))
-        mct_file.close()
+        mct_file.close() """
 
     #print "all valid compounds:",valid_compound
     #print "all active compounds:",desired_compound

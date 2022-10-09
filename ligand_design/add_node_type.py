@@ -119,8 +119,8 @@ def chem_kn_simulation(model,state,val,added_nodes):
         #x_pad= pad_sequences(x, maxlen=82, dtype='int32',padding='post', truncating='pre', value=0.)
         x_pad= pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
         while not get_int[-1] == val.index(end):
-            #predictions=model.predict(x_pad,verbose=0)
-            predictions = model(x_pad, training=False)
+            predictions=model.predict_on_batch(x_pad)
+            #predictions = model(x_pad, training=False)
             #print "shape of RNN",predictions.shape
             preds=np.asarray(predictions[0][len(get_int)-1]).astype('float64')
             preds = np.log(preds) / 1.0
@@ -187,6 +187,7 @@ def check_node_type(new_compound,dataDir):
         config = json.load(open(dataDir+'input/python_config.json','r'))
         proteinName = config['proteinName']
         isUseeToxPred = config['isUseeToxPred']
+        saThreshold = config['saThreshold']
         if isUseeToxPred:
             eToxPredModel = load("./ligand_design/etoxpred_best_model.joblib")# TODO: extends compatibility on any location with config.json
 
@@ -226,7 +227,7 @@ def check_node_type(new_compound,dataDir):
             else:
                 SA_score=1000
                 #logP = 1000
-            if SA_score<=3.5:
+            if SA_score>=saThreshold:
                 continue
             #score[1]=logP
             cycle_list = nx.cycle_basis(nx.Graph(rdmolops.GetAdjacencyMatrix(MolFromSmiles(new_compound[i]))))
