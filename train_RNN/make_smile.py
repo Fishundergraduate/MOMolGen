@@ -156,6 +156,7 @@ def zinc_data_with_bracket_original():
     #f = open('/Users/yang/smiles.csv', 'rb')
     #f = open('/Users/yang/LSTM-chemical-project/smile_trainning.csv', 'rb')
     f = open(os.path.dirname(__file__)+'/../data/250k_rndm_zinc_drugs_clean.smi', 'r')
+    #f = open('/gs/hs0/tga-science/suzuki/ChemTS/data/250k_rndm_zinc_drugs_clean.smi', 'r')
 
     reader = csv.reader(f)
     for row in reader:
