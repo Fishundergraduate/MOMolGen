@@ -4,7 +4,7 @@ import argparse
 parser = argparse.ArgumentParser(description="revise setting file")
 
 parser.add_argument('targetDir',help="path to dir")
-parser.add_argument('N',help='count')
+parser.add_argument('N',help='count',type=int)
 args = parser.parse_args()
 
 tDir = args.targetDir
@@ -20,7 +20,7 @@ with open(tDir+'/input/python_config.json','r+') as f:
     config['limitTimeMinutes'] = 0
     config['limitTimeSeconds'] = 0
     config['isUseeToxPred'] = True
-    config['proteinName'] = '6lu7.pdbqt' if N in range(6,11) else '3zosA_prepared.pdbqt'
+    config['proteinName'] = '6lu7.pdbqt' if 5<N<11 else '3zosA_prepared.pdbqt'
     config['randomSeed'] = 333
     config['saThreshold'] = 3.5
     config['//'] = "eToxPred must be located in ligand_design/etoxpred_best_model.joblib"
