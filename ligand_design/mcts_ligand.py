@@ -332,7 +332,7 @@ def MCTS(root, pareto=pareto(), time_limit_sec=3600*240):
                 break
             node = new_node
             state.SelectPosition(node.position)
-        print("state position:,",state.position)
+        #print("state position:,",state.position)
 
         ## Check in next test
         
