@@ -1,30 +1,30 @@
-from subprocess import Popen, PIPE
+#from subprocess import Popen, PIPE
 from math import *
-import random
+#import random
 import numpy as np
-from copy import deepcopy
+#from copy import deepcopy
 ##from types import IntType, ListType, TupleType, StringTypes
-import itertools
+#import itertools
 import time
-import math
-import argparse
+#import math
+#import argparse
 import subprocess
-from load_model import loaded_model
+#from load_model import loaded_model
 from keras.utils import pad_sequences
 from rdkit import Chem
-from rdkit.Chem import QED, Draw
+from rdkit.Chem import QED#, Draw
 from rdkit.Chem import Descriptors
-import sys
+#import sys
 from rdkit.Chem import AllChem
-from rdkit.Chem import MolFromSmiles, MolToSmiles
-from make_smile import zinc_data_with_bracket_original, zinc_processed_with_bracket
-from rdock_test import rdock_score
+from rdkit.Chem import MolFromSmiles#, MolToSmiles
+#from make_smile import zinc_data_with_bracket_original, zinc_processed_with_bracket
+#from rdock_test import rdock_score
 import sascorer
-import pickle
-import gzip
+#import pickle
+#import gzip
 import networkx as nx
 from rdkit.Chem import rdmolops
-import os
+#import os
 import pandas as pd
 import traceback
 
