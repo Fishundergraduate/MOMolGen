@@ -16,7 +16,7 @@ from rdkit.Chem import QED#, Draw
 from rdkit.Chem import Descriptors
 #import sys
 from rdkit.Chem import AllChem
-from rdkit.Chem import MolFromSmiles#, MolToSmiles
+#from rdkit.Chem import MolFromSmiles#, MolToSmiles
 #from make_smile import zinc_data_with_bracket_original, zinc_processed_with_bracket
 #from rdock_test import rdock_score
 import sascorer
@@ -30,7 +30,7 @@ import traceback
 
 from joblib import load
 
-
+import SeterrIO
 
 def expanded_node(model,state,val):
 
@@ -54,7 +54,7 @@ def expanded_node(model,state,val):
     x_pad= pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
 
     for i in range(30):
-        predictions=model.predict(x_pad,verbose=0)
+        predictions=model.predict_on_batch(x_pad)
         #print "shape of RNN",predictions.shape
         preds=np.asarray(predictions[0][len(get_int)-1]).astype('float64')
         preds = np.log(preds) / 1.0
@@ -208,14 +208,16 @@ def check_node_type(new_compound,dataDir):
     for i in range(len(new_compound)):
         score = [0.,0.,0.]
         try:
-            ko = Chem.MolFromSmiles(new_compound[i])
-            #TODO: try-except revise
+            with open(dataDir+"./output/allproducts.txt","a") as f:
+                f.write(new_compound[i]+"\n")
+            with SeterrIO("/dev/null"):
+                ko = Chem.MolFromSmiles(new_compound[i])
         except:
             ko=None
         
         if ko!=None:
             try:
-                molscore=MolFromSmiles(new_compound[i])
+                molscore=Chem.MolFromSmiles(new_compound[i])
             except:
                 molscore=None
             if molscore!=None:
@@ -229,7 +231,7 @@ def check_node_type(new_compound,dataDir):
             if SA_score>=saThreshold:
                 continue
             score[1]=logP
-            cycle_list = nx.cycle_basis(nx.Graph(rdmolops.GetAdjacencyMatrix(MolFromSmiles(new_compound[i]))))
+            cycle_list = nx.cycle_basis(nx.Graph(rdmolops.GetAdjacencyMatrix(Chem.MolFromSmiles(new_compound[i]))))
             if len(cycle_list) == 0:
                 cycle_length =0
             else:
@@ -288,7 +290,7 @@ def check_node_type(new_compound,dataDir):
                 
                 ##qedscore
                 try:
-                    score[2]=round(QED.default(MolFromSmiles(new_compound[i])),3)
+                    score[2]=round(QED.default(Chem.MolFromSmiles(new_compound[i])),3)
                 except:
                     score[2]=0
                 print("binding energy value: "+str(round(m,2))+'\t'+new_compound[i])
