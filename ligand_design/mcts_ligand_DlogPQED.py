@@ -1,23 +1,23 @@
-from subprocess import Popen, PIPE
+#from subprocess import Popen, PIPE
 from math import *
 #import random
 import random as pr
 import numpy as np
 from copy import deepcopy
 ##from types import ListType, TupleType, StringTypes
-import itertools
+#import itertools
 import time
-import math
+#import math
 import argparse
-import subprocess
+#import subprocess
 
-from rdkit.Chem.QED import qed
+#from rdkit.Chem.QED import qed
 from load_model import loaded_model
-from keras.preprocessing import sequence
-from rdkit import Chem
-from rdkit.Chem import Draw
-from rdkit.Chem import Descriptors
-import sys
+#from keras.preprocessing import sequence
+#from rdkit import Chem
+#from rdkit.Chem import Draw
+#from rdkit.Chem import Descriptors
+#import sys
 from make_smile import zinc_data_with_bracket_original, zinc_processed_with_bracket
 from add_node_type_DlogPQED import chem_kn_simulation, make_input_smile,predict_smile,check_node_type,node_to_add,expanded_node
 from pygmo import hypervolume
@@ -25,10 +25,12 @@ import copy
 
 import os
 import json
-import traceback
+#import traceback
 import errno
 
 import argparse
+from joblib import Parallel, delayed
+import pdb
 
 
 class chemical:
@@ -121,7 +123,12 @@ class pareto:
         print("Loaded Pareto Fronts")
         return new_pareto
 
-
+_pareto_temp = [[]]
+def _positiveParetoTemp(i):
+    global _pareto_temp
+    for j in range(0,len(_pareto_temp[0])):
+        _pareto_temp[i][j] = -_pareto_temp[i][j] if _pareto_temp[i][j]>0 else -0.00000000000000001
+    return _pareto_temp[i]
 class Node:
 
     def __init__(self, position = None,  parent = None, state = None, childNodes=[], child=None, wins=[0,0,0], visits=0, nonvisited_atom=None, type_node= [], depth=0):
@@ -177,15 +184,23 @@ class Node:
     def hvcal(self,pareto,ucb):## cal hypervolume indicator
         if len(pareto.front) == 0:
             return 0
-        pareto_temp = copy.deepcopy(pareto.front)
-        pareto_temp.append(ucb)
-        for i in range(len(pareto_temp)):
-            for j in range(len(pareto_temp[0])):
-                if(pareto_temp[i][j]>0):
-                    pareto_temp[i][j] = -pareto_temp[i][j]
+        global _pareto_temp
+        _pareto_temp = copy.deepcopy(pareto.front)
+        _pareto_temp.append(ucb)
+        """ for i in range(len(_pareto_temp)):
+            for j in range(len(_pareto_temp[0])):
+                print(i,j)
+                print(_pareto_temp[i][j])
+                _positiveParetoTemp(i,j) """
+        #pdb.set_trace()
+        _pareto_temp = Parallel(n_jobs=-1,verbose=0)([delayed(_positiveParetoTemp)(i) for i in range(0,len(_pareto_temp))])
+        """ for i in range(len(_pareto_temp)):
+            for j in range(len(_pareto_temp[0])):
+                if(_pareto_temp[i][j]>0):
+                    _pareto_temp[i][j] = -_pareto_temp[i][j]
                 else:
-                    pareto_temp[i][j] = -0.00000000000000001
-        hv = hypervolume(pareto_temp)
+                    _pareto_temp[i][j] = -0.00000000000000001 """
+        hv = hypervolume(_pareto_temp)
         ref_point = [0,0,0]
         hvnum = 0
         try:
@@ -305,11 +320,15 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
         """selection step"""
         node_pool=[]
         
-        
         while node.childNodes!=[]:
+            #pdb.set_trace()
             if not int(pow(node.visits +1, 0.5))==int(pow(node.visits, 0.5)):
                 break
-            node = node.Selectnode(pareto)
+            new_node = node.Selectnode(pareto)
+            if new_node == node:
+                node = new_node
+                break
+            node = new_node
             state.SelectPosition(node.position)
         print("state position:,",state.position)
 
@@ -359,7 +378,7 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
                 node.Update(default_reward[0])
                 node = node.parentNode
         else:
-            re=[]
+            re=[] # for が走ってない？TODO:
             for i in range(len(node_index)):
                 m=node_index[i]
                 newflag = True
@@ -370,7 +389,7 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
                 if newflag:
                     node.Addnode(nodeadded[m],state)##
                     print(len(node.childNodes))
-                elif len(node.childNodes) >0:
+                    if len(node.childNodes) >0:
                         node_pool.append(node.childNodes[-1])
                 
                 ##node_pool.append(node.childNodes[i])
@@ -410,11 +429,22 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
                 if pareto.Dominated(scores[i]) == False:
                     pareto.Update(scores[i],valid_smile[i])
                     print("Time: ",time.asctime( time.localtime(time.time()) ))
+                # scores != None TODO: try-catch
+                if(len(scores) == 0):
+                    raise ValueError(scores,"socres")
+                try:
+                    re.append(scores[i])
+                    if len(re)==0:
+                        raise ValueError("re",len(re),"scores",scores[i])
+                except ValueError as e:
+                    print(e)
+                    
 
-                re.append(scores[i])
-
+            print("[pdb]:i",i,"len:",len(node_pool),"re:",len(re))
+            if len(re)==0:
+                raise ValueError("re",len(re),"node_index",len(node_index))
             for i in range(len(node_pool)):
-
+                #pdb.set_trace()
                 node=node_pool[i]
                 while node != None:
                     node.Update(re[i])
@@ -430,10 +460,10 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
         json.dump(pareto.__dict__,pareto_file, indent=4, separators=(',', ': '))
         pareto_file.close()
 
-        mct_file = open(dataDir+'present/tree.json', 'w')
+        """ mct_file = open(dataDir+'present/tree.json', 'w')
         rootnode = rootnode.preprocess_todict()
         #json.dump(rootnode.__dict__, mct_file, indent=4, separators=(',', ': '))
-        mct_file.close()
+        mct_file.close() """
 
     #print "all valid compounds:",valid_compound
     #print "all active compounds:",desired_compound

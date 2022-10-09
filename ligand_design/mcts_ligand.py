@@ -1,23 +1,23 @@
-from subprocess import Popen, PIPE
+#from subprocess import Popen, PIPE
 from math import *
-import random
+#import random
 import random as pr
 import numpy as np
 from copy import deepcopy
 ##from types import ListType, TupleType, StringTypes
-import itertools
+#import itertools
 import time
-import math
+#import math
 import argparse
-import subprocess
+#import subprocess
 
-from rdkit.Chem.QED import qed
+#from rdkit.Chem.QED import qed
 from load_model import loaded_model
-from keras.preprocessing import sequence
-from rdkit import Chem
-from rdkit.Chem import Draw
-from rdkit.Chem import Descriptors
-import sys
+#from keras.preprocessing import sequence
+#from rdkit import Chem
+#from rdkit.Chem import Draw
+#from rdkit.Chem import Descriptors
+#import sys
 from make_smile import zinc_data_with_bracket_original, zinc_processed_with_bracket
 from add_node_type import chem_kn_simulation, make_input_smile,predict_smile,check_node_type,node_to_add,expanded_node
 from pygmo import hypervolume
@@ -25,7 +25,7 @@ import copy
 
 import os
 import json
-import traceback
+#import traceback
 import errno
 
 import argparse

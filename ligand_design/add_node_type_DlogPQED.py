@@ -1,30 +1,30 @@
-from subprocess import Popen, PIPE
+#from subprocess import Popen, PIPE
 from math import *
-import random
+#import random
 import numpy as np
-from copy import deepcopy
+#from copy import deepcopy
 ##from types import IntType, ListType, TupleType, StringTypes
-import itertools
+#import itertools
 import time
-import math
-import argparse
+#import math
+#import argparse
 import subprocess
-from load_model import loaded_model
+#from load_model import loaded_model
 from keras.utils import pad_sequences
 from rdkit import Chem
-from rdkit.Chem import QED, Draw
+from rdkit.Chem import QED#, Draw
 from rdkit.Chem import Descriptors
-import sys
+#import sys
 from rdkit.Chem import AllChem
-from rdkit.Chem import MolFromSmiles, MolToSmiles
-from make_smile import zinc_data_with_bracket_original, zinc_processed_with_bracket
-from rdock_test import rdock_score
+from rdkit.Chem import MolFromSmiles#, MolToSmiles
+#from make_smile import zinc_data_with_bracket_original, zinc_processed_with_bracket
+#from rdock_test import rdock_score
 import sascorer
-import pickle
-import gzip
+#import pickle
+#import gzip
 import networkx as nx
 from rdkit.Chem import rdmolops
-import os
+#import os
 import pandas as pd
 import traceback
 
@@ -119,8 +119,8 @@ def chem_kn_simulation(model,state,val,added_nodes):
         #x_pad= pad_sequences(x, maxlen=82, dtype='int32',padding='post', truncating='pre', value=0.)
         x_pad= pad_sequences(x, maxlen=81, dtype='int32',padding='post', truncating='pre', value=0.)
         while not get_int[-1] == val.index(end):
-            #predictions=model.predict(x_pad,verbose=0)
-            predictions = model(x_pad, training=False)
+            predictions=model.predict_on_batch(x_pad)
+            #predictions = model(x_pad, training=False)
             #print "shape of RNN",predictions.shape
             preds=np.asarray(predictions[0][len(get_int)-1]).astype('float64')
             preds = np.log(preds) / 1.0
@@ -187,6 +187,7 @@ def check_node_type(new_compound,dataDir):
         config = json.load(open(dataDir+'input/python_config.json','r'))
         proteinName = config['proteinName']
         isUseeToxPred = config['isUseeToxPred']
+        saThreshold = config['saThreshold']
         if isUseeToxPred:
             eToxPredModel = load("./ligand_design/etoxpred_best_model.joblib")# TODO: extends compatibility on any location with config.json
 
@@ -226,8 +227,7 @@ def check_node_type(new_compound,dataDir):
             else:
                 SA_score=1000
                 logP = 1000
-            if SA_score<=3.5:#TODO: Changed This Code.
-            #if SA_score>=3.5:#TODO: Changed This Code.
+            if SA_score>=saThreshold:
                 continue
             score[1]=logP
             cycle_list = nx.cycle_basis(nx.Graph(rdmolops.GetAdjacencyMatrix(MolFromSmiles(new_compound[i]))))
@@ -304,8 +304,8 @@ def check_node_type(new_compound,dataDir):
                     tox_score = eToxPredModel.predict_proba(tmpX.reshape((1,1024)))[:,1]
                     if tox_score[0] >= 0.7:
                         continue
-                    score[2] = (1- tox_score[0])
-                    print("non tox score:",score[2])
+                    #score[2] = (1- tox_score[0])
+                    #print("non tox score:",score[2])
                 
                 if m<10**10:
                     node_index.append(i)

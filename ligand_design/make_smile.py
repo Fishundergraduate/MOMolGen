@@ -1,12 +1,12 @@
 
 import csv
-import itertools
-import operator
-import numpy as np
+#import itertools
+#import operator
+#import numpy as np
 #import nltk
-import os
+#import os
 from rdkit import Chem
-from rdkit.Chem import Draw
+#from rdkit.Chem import Draw
 #from IPython import display
 ##import matplotlib.pyplot as plt
 from rdkit.Chem import Descriptors

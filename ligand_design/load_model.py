@@ -1,11 +1,11 @@
-import csv
-import itertools
-import operator
-import numpy as np
+#import csv
+#import itertools
+#import operator
+#import numpy as np
 #import nltk
-import h5py
-import os
-from datetime import datetime
+#import h5py
+#import os
+#from datetime import datetime
 #from keras.models import Sequential
 #from keras.layers import Dense, Activation,TimeDistributed
 #from keras.layers import LSTM,GRU
@@ -19,7 +19,7 @@ from datetime import datetime
 #from keras.utils.np_utils import to_categorical
 #from keras.preprocessing import sequence
 from keras.models import model_from_json
-from make_smile import zinc_data_with_bracket, zinc_processed_with_bracket
+#from make_smile import zinc_data_with_bracket, zinc_processed_with_bracket
 
 from keras.models import load_model
 
