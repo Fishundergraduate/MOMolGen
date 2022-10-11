@@ -262,7 +262,7 @@ if __name__ == "__main__":
 
     # make up callbacks
     earlyStopping = EarlyStopping(monitor='val_loss', min_delta=0.0, patience=2)
-    callbacks = [earlystoppingByTimer, earlyStopping]
+    callbacks = [earlystoppingByTimer]#, earlyStopping]
     if needTensorboard:
         tensorboard_callback = TensorBoard(log_dir="../tensorboard_logs", profile_batch=5)
         callbacks.append(tensorboard_callback)
