@@ -55,7 +55,7 @@ def loaded_model(rnnModelDir):
     loaded_model.load_weights(rnnModelDir+'model.h5')
     print("Loaded model from disk")
     
-    #loaded_model = load_model("../model")
+    loaded_model = load_model("model")
     return loaded_model
 
 def loaded_activity_model():

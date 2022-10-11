@@ -29,6 +29,7 @@ import pandas as pd
 import traceback
 
 from joblib import load
+from rdkit import rdBase
 
 import SeterrIO
 
@@ -210,12 +211,11 @@ def check_node_type(new_compound,dataDir):
         if len(new_compound[i]) == 0:
             continue
         assert len(new_compound[i]) >0
-        try:
-            with open(dataDir+"./output/allproducts.txt","a") as f:
-                f.write(new_compound[i]+"\n")
-            with SeterrIO("/dev/null"):
-                ko = Chem.MolFromSmiles(new_compound[i])
-        except:
+        with open(dataDir+"./output/allproducts.txt","a") as f:
+            f.write(new_compound[i]+"\n")
+        with rdBase.BlockLogs():
+            ko = Chem.MolFromSmiles(new_compound[i])
+        if ko == None:
             continue
         
         assert ko != None 
