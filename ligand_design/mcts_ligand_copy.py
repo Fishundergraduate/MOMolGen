@@ -192,13 +192,14 @@ class Node:
                 print(_pareto_temp[i][j])
                 _positiveParetoTemp(i,j) """
         #pdb.set_trace()
-        _pareto_temp = Parallel(n_jobs=-1,verbose=0)([delayed(_positiveParetoTemp)(i) for i in range(0,len(_pareto_temp))])
-        """ for i in range(len(_pareto_temp)):
+        #_pareto_temp = Parallel(n_jobs=-1,verbose=0)([delayed(_positiveParetoTemp)(i) for i in range(0,len(_pareto_temp))])
+        #Parallel(n_jobs=-1,verbose=0)([delayed(_positiveParetoTemp)(i) for i in range(0,len(_pareto_temp))])
+        for i in range(len(_pareto_temp)):
             for j in range(len(_pareto_temp[0])):
                 if(_pareto_temp[i][j]>0):
                     _pareto_temp[i][j] = -_pareto_temp[i][j]
                 else:
-                    _pareto_temp[i][j] = -0.00000000000000001 """
+                    _pareto_temp[i][j] = -0.00000000000000001
         hv = hypervolume(_pareto_temp)
         ref_point = [0,0,0]
         hvnum = 0
@@ -306,7 +307,7 @@ def MCTS(root, pareto=pareto(), time_limit_sec=3600*240):
     dock_score=[]
     sascore=[]
     qedscore=[]
-    default_reward = [[0,0,0,0]]
+    default_reward = [[0,0,0]]
     
     
 
