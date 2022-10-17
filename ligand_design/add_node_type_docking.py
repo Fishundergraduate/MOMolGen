@@ -34,8 +34,10 @@ from joblib import load
 #import contextlib
 from rdkit import rdBase
 import pdb
+import SeterrIO
 import os
 import json
+import re
 def expanded_node(model,state,val):
 
     all_nodes=[]
@@ -183,7 +185,6 @@ def make_input_smile(generate_smile):
 
 
 def check_node_type(new_compound,dataDir):
-    
     isUseeToxPred = False
     if os.path.exists(dataDir+'input/python_config.json') :
         config = json.load(open(dataDir+'input/python_config.json','r'))
@@ -209,14 +210,13 @@ def check_node_type(new_compound,dataDir):
     ##return node_index,score,valid_compound
     
     for i in range(len(new_compound)):
+        new_compound[i] = re.sub('\n','',new_compound[i])
         score = [0.,0.,0.]
         if len(new_compound[i]) == 0:
             continue
         assert len(new_compound[i]) >0
         with open(dataDir+"./output/allproducts.txt","a") as f:
             f.write(new_compound[i]+"\n")
-        #with SeterrIO("/dev/null"):
-        #with contextlib.redirect_stdout(None):
         with rdBase.BlockLogs():
             ko = Chem.MolFromSmiles(new_compound[i])
         if ko == None:
@@ -230,7 +230,7 @@ def check_node_type(new_compound,dataDir):
         #site: https://github.com/pulimeng/eToxPred
         if SA_score>=saThreshold:
             continue
-        assert SA_score < saThreshold #TODO: modified
+        assert SA_score < saThreshold
         #score[1]=logP
 
         cycle_list = nx.cycle_basis(nx.Graph(rdmolops.GetAdjacencyMatrix(ko)))
@@ -238,7 +238,6 @@ def check_node_type(new_compound,dataDir):
             cycle_length =0
         else:
             cycle_length = max([ len(j) for j in cycle_list ])
-        # TODO: Modified
         if cycle_length > 6:
             continue
         assert cycle_length <= 6
@@ -254,7 +253,6 @@ def check_node_type(new_compound,dataDir):
         #  -h: protonation
         
         ##os.system(cvt_cmd)
-        m = 10**10 # TODO: Modified
         try:
             cvt_log = open(dataDir+"workspace/cvt_log.txt","w")
             cvt_cmd = ["obabel", dataDir+"workspace/ligand.smi" ,"-O",dataDir+"workspace/ligand.pdbqt" ,"--gen3D","-p"]
