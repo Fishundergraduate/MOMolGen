@@ -34,7 +34,10 @@ from joblib import load
 #import contextlib
 from rdkit import rdBase
 import pdb
-
+import SeterrIO
+import os
+import json
+import re
 def expanded_node(model,state,val):
 
     all_nodes=[]
@@ -182,8 +185,6 @@ def make_input_smile(generate_smile):
 
 
 def check_node_type(new_compound,dataDir):
-    import os
-    import json
     isUseeToxPred = False
     if os.path.exists(dataDir+'input/python_config.json') :
         config = json.load(open(dataDir+'input/python_config.json','r'))
@@ -209,14 +210,13 @@ def check_node_type(new_compound,dataDir):
     ##return node_index,score,valid_compound
     
     for i in range(len(new_compound)):
+        new_compound[i] = re.sub('\n','',new_compound[i])
         score = [0.,0.,0.]
         if len(new_compound[i]) == 0:
             continue
         assert len(new_compound[i]) >0
         with open(dataDir+"./output/allproducts.txt","a") as f:
             f.write(new_compound[i]+"\n")
-        #with SeterrIO("/dev/null"):
-        #with contextlib.redirect_stdout(None):
         with rdBase.BlockLogs():
             ko = Chem.MolFromSmiles(new_compound[i])
         if ko == None:
@@ -230,90 +230,91 @@ def check_node_type(new_compound,dataDir):
         #site: https://github.com/pulimeng/eToxPred
         if SA_score>=saThreshold:
             continue
+        assert SA_score < saThreshold #TODO: modified
         #score[1]=logP
+
         cycle_list = nx.cycle_basis(nx.Graph(rdmolops.GetAdjacencyMatrix(ko)))
         if len(cycle_list) == 0:
             cycle_length =0
         else:
             cycle_length = max([ len(j) for j in cycle_list ])
-        if cycle_length <= 6:
-            ##m=rdock_score(new_compound[i])
-            # create SMILES file
-            with open(dataDir+'./workspace/ligand.smi','w') as f:
-                f.write(new_compound[i])
-            with open(dataDir+'./output/allLigands.txt','a', newline="\n") as f:
-                f.write(new_compound[i]+"\n") 
-            # convert SMILES > PDBQT
-            # --gen3d: the option for generating 3D coordinate
-            #  -h: protonation
-            
-            ##os.system(cvt_cmd)
-            m = 10**10
-            flag= True
-            try:
-                cvt_log = open(dataDir+"workspace/cvt_log.txt","w")
-                cvt_cmd = ["obabel", dataDir+"workspace/ligand.smi" ,"-O",dataDir+"workspace/ligand.pdbqt" ,"--gen3D","-p"]
-                subprocess.run(cvt_cmd, stdin=None, input=None, stdout=cvt_log, stderr=None, shell=False, timeout=300, check=False, universal_newlines=False)
-                cvt_log.close()
-            except:
-                flag = False
-                f = open(dataDir+"present/error_output.txt", 'a')
-                print("cvt_error: ", time.asctime( time.localtime(time.time()) ),file=f)
-                print(traceback.print_exc(),file=f)
-                f.close()
-            if flag:
-                try:
-                    vina_log = open(dataDir+"workspace/log_docking.txt","w")
-                    docking_cmd =["vina --config "+dataDir+"./input/vina_config.txt --num_modes=1 --receptor="+dataDir+"./input/"+proteinName+" --ligand="+dataDir+"./workspace/ligand.pdbqt"]#TODO: direct acess to protein file
-                    subprocess.run(docking_cmd, stdin=None, input=None, stdout=vina_log, stderr=None, shell=True, timeout=600, check=False, universal_newlines=False)
-                    vina_log.close()
-                    data = pd.read_csv(dataDir+'workspace/log_docking.txt', sep= "\t",header=None)
-                    m = round(float(data.values[-2][0].split()[1]),2)
-                except:
-                    m = 10**10
-                    f = open(dataDir+"./present/error_output.txt", 'a')
-                    print("vina_error: ", time.asctime( time.localtime(time.time()) ),file=f)
-                    print(traceback.print_exc(),file=f)
-                    f.close()
-            else:
-                m = 10**10
+        # TODO: Modified
+        if cycle_length > 6:
+            continue
+        assert cycle_length <= 6
 
-            # docking
-            
-            ##os.system(docking_cmd)
-            
-            
-            # parsing docking score from log file
-            
-            
-            ##qedscore
-            try:
-                score[1]=round(QED.default(ko),3)
-            except:
-                score[1]=0
-            print("binding energy value: "+str(round(m,2))+'\t'+new_compound[i])
-            
-            ## eToxPred
-            ## https://github.com/pulimeng/eToxPred/blob/master/etoxpred_predict.py
-            if isUseeToxPred:
-                mol = Chem.AddHs(ko)
-                fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=1024)
-                fp_string = fp.ToBitString()
-                tmpX = np.array(list(fp_string),dtype=float)
-                tox_score = eToxPredModel.predict_proba(tmpX.reshape((1,1024)))[:,1]
-                if tox_score[0] >= 0.7:
-                    continue
-                score[2] = (1- tox_score[0])
-                print("non tox score:",score[2])
-            
-            if m<10**10:
-                node_index.append(i)
-                valid_compound.append(new_compound[i])
-                score[0]=m # docking score
-                scores.append(score)
-            
+        ##m=rdock_score(new_compound[i])
+        # create SMILES file
+        with open(dataDir+'./workspace/ligand.smi','w') as f:
+            f.write(new_compound[i])
+        with open(dataDir+'./output/allLigands.txt','a', newline="\n") as f:
+            f.write(new_compound[i]+"\n") 
+        # convert SMILES > PDBQT
+        # --gen3d: the option for generating 3D coordinate
+        #  -h: protonation
+        
+        ##os.system(cvt_cmd)
+        try:
+            cvt_log = open(dataDir+"workspace/cvt_log.txt","w")
+            cvt_cmd = ["obabel", dataDir+"workspace/ligand.smi" ,"-O",dataDir+"workspace/ligand.pdbqt" ,"--gen3D","-p"]
+            subprocess.run(cvt_cmd, stdin=None, input=None, stdout=cvt_log, stderr=None, shell=False, timeout=300, check=False, universal_newlines=False)
+            cvt_log.close()
+        except:
+            f = open(dataDir+"present/error_output.txt", 'a')
+            print("cvt_error: ", time.asctime( time.localtime(time.time()) ),file=f)
+            print(traceback.print_exc(),file=f)
+            f.close()
+            continue
+        try:
+            vina_log = open(dataDir+"workspace/log_docking.txt","w")
+            docking_cmd =["vina --config "+dataDir+"./input/vina_config.txt --num_modes=1 --receptor="+dataDir+"./input/"+proteinName+" --ligand="+dataDir+"./workspace/ligand.pdbqt"]#TODO: direct acess to protein file
+            subprocess.run(docking_cmd, stdin=None, input=None, stdout=vina_log, stderr=None, shell=True, timeout=600, check=False, universal_newlines=False)
+            vina_log.close()
+            data = pd.read_csv(dataDir+'workspace/log_docking.txt', sep= "\t",header=None)
+            m = round(float(data.values[-2][0].split()[1]),2)
+        except:
+            f = open(dataDir+"./present/error_output.txt", 'a')
+            print("vina_error: ", time.asctime( time.localtime(time.time()) ),file=f)
+            print(traceback.print_exc(),file=f)
+            f.close()
+            continue
+        assert m < 10**10
+        # docking
+        
+        ##os.system(docking_cmd)
+        
+        
+        # parsing docking score from log file
+        
+        
+        ##qedscore
+        try:
+            #score[1]=round(QED.default(ko),3)
+            score[1]=0
+        except:
+            score[1]=0
+        print("binding energy value: "+str(round(m,2))+'\t'+new_compound[i])
+        
+        ## eToxPred
+        ## https://github.com/pulimeng/eToxPred/blob/master/etoxpred_predict.py
+        if False:
+            mol = Chem.AddHs(ko)
+            fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=1024)
+            fp_string = fp.ToBitString()
+            tmpX = np.array(list(fp_string),dtype=float)
+            tox_score = eToxPredModel.predict_proba(tmpX.reshape((1,1024)))[:,1]
+            if tox_score[0] >= 0.7:
+                continue
+            score[2] = (1- tox_score[0])
+            print("non tox score:",score[2])
+
+        node_index.append(i)
+        valid_compound.append(new_compound[i])
+        score[0]=m # docking score
+        scores.append(score)
                 
                     
+
 
 
 

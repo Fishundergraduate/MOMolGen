@@ -32,7 +32,9 @@ from joblib import load
 from rdkit import rdBase
 
 import SeterrIO
-
+import os
+import json
+import re
 def expanded_node(model,state,val):
 
     all_nodes=[]
@@ -180,8 +182,6 @@ def make_input_smile(generate_smile):
 
 
 def check_node_type(new_compound,dataDir):
-    import os
-    import json
     isUseeToxPred = False
     if os.path.exists(dataDir+'input/python_config.json') :
         config = json.load(open(dataDir+'input/python_config.json','r'))
@@ -207,6 +207,7 @@ def check_node_type(new_compound,dataDir):
     ##return node_index,score,valid_compound
     
     for i in range(len(new_compound)):
+        new_compound[i] = re.sub('\n','',new_compound[i])
         score = [0.,0.,0.]
         if len(new_compound[i]) == 0:
             continue
@@ -226,53 +227,54 @@ def check_node_type(new_compound,dataDir):
         #site: https://github.com/pulimeng/eToxPred
         if SA_score>=saThreshold:
             continue
+        assert SA_score < saThreshold
         score[1]=logP
         cycle_list = nx.cycle_basis(nx.Graph(rdmolops.GetAdjacencyMatrix(ko)))
         if len(cycle_list) == 0:
             cycle_length =0
         else:
             cycle_length = max([ len(j) for j in cycle_list ])
-        if cycle_length <= 6:
-            ##m=rdock_score(new_compound[i])
-            # create SMILES file
-            with open(dataDir+'./workspace/ligand.smi','w') as f:
-                f.write(new_compound[i])
-            with open(dataDir+'./output/allLigands.txt','a', newline="\n") as f:
-                f.write(new_compound[i]+"\n") 
-            # convert SMILES > PDBQT
-            # --gen3d: the option for generating 3D coordinate
-            #  -h: protonation
-            
-            ##os.system(cvt_cmd)
+        if cycle_length > 6:
+            continue
+        assert cycle_length <= 6
+        ##m=rdock_score(new_compound[i])
+        # create SMILES file
+        with open(dataDir+'./workspace/ligand.smi','w') as f:
+            f.write(new_compound[i])
+        with open(dataDir+'./output/allLigands.txt','a', newline="\n") as f:
+            f.write(new_compound[i]+"\n") 
+        # convert SMILES > PDBQT
+        # --gen3d: the option for generating 3D coordinate
+        #  -h: protonation
+        
+        ##os.system(cvt_cmd)
+        try:
+            cvt_log = open(dataDir+"workspace/cvt_log.txt","w")
+            cvt_cmd = ["obabel", dataDir+"workspace/ligand.smi" ,"-O",dataDir+"workspace/ligand.pdbqt" ,"--gen3D","-p"]
+            subprocess.run(cvt_cmd, stdin=None, input=None, stdout=cvt_log, stderr=None, shell=False, timeout=300, check=False, universal_newlines=False)
+            cvt_log.close()
+        except:
+            flag = False
+            f = open(dataDir+"present/error_output.txt", 'a')
+            print("cvt_error: ", time.asctime( time.localtime(time.time()) ),file=f)
+            print(traceback.print_exc(),file=f)
+            f.close()
+            continue
+        try:
+            vina_log = open(dataDir+"workspace/log_docking.txt","w")
+            docking_cmd =["vina --config "+dataDir+"./input/vina_config.txt --num_modes=1 --receptor="+dataDir+"./input/"+proteinName+" --ligand="+dataDir+"./workspace/ligand.pdbqt"]#TODO: direct acess to protein file
+            subprocess.run(docking_cmd, stdin=None, input=None, stdout=vina_log, stderr=None, shell=True, timeout=600, check=False, universal_newlines=False)
+            vina_log.close()
+            data = pd.read_csv(dataDir+'workspace/log_docking.txt', sep= "\t",header=None)
+            m = round(float(data.values[-2][0].split()[1]),2)
+        except:
             m = 10**10
-            flag= True
-            try:
-                cvt_log = open(dataDir+"workspace/cvt_log.txt","w")
-                cvt_cmd = ["obabel", dataDir+"workspace/ligand.smi" ,"-O",dataDir+"workspace/ligand.pdbqt" ,"--gen3D","-p"]
-                subprocess.run(cvt_cmd, stdin=None, input=None, stdout=cvt_log, stderr=None, shell=False, timeout=300, check=False, universal_newlines=False)
-                cvt_log.close()
-            except:
-                flag = False
-                f = open(dataDir+"present/error_output.txt", 'a')
-                print("cvt_error: ", time.asctime( time.localtime(time.time()) ),file=f)
-                print(traceback.print_exc(),file=f)
-                f.close()
-            if flag:
-                try:
-                    vina_log = open(dataDir+"workspace/log_docking.txt","w")
-                    docking_cmd =["vina --config "+dataDir+"./input/vina_config.txt --num_modes=1 --receptor="+dataDir+"./input/"+proteinName+" --ligand="+dataDir+"./workspace/ligand.pdbqt"]#TODO: direct acess to protein file
-                    subprocess.run(docking_cmd, stdin=None, input=None, stdout=vina_log, stderr=None, shell=True, timeout=600, check=False, universal_newlines=False)
-                    vina_log.close()
-                    data = pd.read_csv(dataDir+'workspace/log_docking.txt', sep= "\t",header=None)
-                    m = round(float(data.values[-2][0].split()[1]),2)
-                except:
-                    m = 10**10
-                    f = open(dataDir+"./present/error_output.txt", 'a')
-                    print("vina_error: ", time.asctime( time.localtime(time.time()) ),file=f)
-                    print(traceback.print_exc(),file=f)
-                    f.close()
-            else:
-                m = 10**10
+            f = open(dataDir+"./present/error_output.txt", 'a')
+            print("vina_error: ", time.asctime( time.localtime(time.time()) ),file=f)
+            print(traceback.print_exc(),file=f)
+            f.close()
+            continue
+        assert m < 10**10
 
             # docking
             
