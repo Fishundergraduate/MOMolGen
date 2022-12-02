@@ -1,23 +1,23 @@
-from subprocess import Popen, PIPE
+#from subprocess import Popen, PIPE
 from math import *
-import random
+#import random
 import random as pr
 import numpy as np
 from copy import deepcopy
 ##from types import ListType, TupleType, StringTypes
-import itertools
+#import itertools
 import time
-import math
+#import math
 import argparse
-import subprocess
+#import subprocess
 
-from rdkit.Chem.QED import qed
+#from rdkit.Chem.QED import qed
 from load_model import loaded_model
-from keras.preprocessing import sequence
-from rdkit import Chem
-from rdkit.Chem import Draw
-from rdkit.Chem import Descriptors
-import sys
+#from keras.preprocessing import sequence
+#from rdkit import Chem
+#from rdkit.Chem import Draw
+#from rdkit.Chem import Descriptors
+#import sys
 from make_smile import zinc_data_with_bracket_original, zinc_processed_with_bracket
 from add_node_type import chem_kn_simulation, make_input_smile,predict_smile,check_node_type,node_to_add,expanded_node
 from pygmo import hypervolume
@@ -25,13 +25,13 @@ import copy
 
 import os
 import json
-import traceback
+#import traceback
 import errno
 
 import argparse
 
-import copy
-
+from joblib import Parallel, delayed
+import pdb
 
 class chemical:
 
@@ -123,7 +123,6 @@ class pareto:
         print("Loaded Pareto Fronts")
         return new_pareto
 
-
 class Node:
 
     def __init__(self, position = None,  parent = None, state = None, childNodes=[], child=None, wins=[0,0,0], visits=0, nonvisited_atom=None, type_node= [], depth=0):
@@ -174,18 +173,22 @@ class Node:
 
         return sqrt(distance)
 
+
+    
+
+
     def hvcal(self,pareto,ucb):## cal hypervolume indicator
         if len(pareto.front) == 0:
             return 0
-        pareto_temp = copy.deepcopy(pareto.front)
-        pareto_temp.append(ucb)
-        for i in range(len(pareto_temp)):
-            for j in range(len(pareto_temp[0])):
-                if(pareto_temp[i][j]>0):
-                    pareto_temp[i][j] = -pareto_temp[i][j]
+        _pareto_temp = copy.deepcopy(pareto.front)
+        _pareto_temp.append(ucb)
+        for i in range(len(_pareto_temp)):
+            for j in range(len(_pareto_temp[0])):
+                if(_pareto_temp[i][j]>0):
+                    _pareto_temp[i][j] = -_pareto_temp[i][j]
                 else:
-                    pareto_temp[i][j] = -0.00000000000000001
-        hv = hypervolume(pareto_temp)
+                    _pareto_temp[i][j] = -0.00000000000000001
+        hv = hypervolume(_pareto_temp)
         ref_point = [0,0,0]
         hvnum = 0
         try:
@@ -196,6 +199,7 @@ class Node:
             print(pareto.front,file=f)
             f.close()
         ##print(hvnum)
+        #pdb.set_trace()
         return hvnum
 
     def Addnode(self, m, s):
@@ -270,7 +274,7 @@ class Node:
         self.depth=depth
 
 
-def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
+def MCTS(root, pareto=pareto(), time_limit_sec=3600*240):
     # initial time-limit is 240h
     """initialization of the chemical trees and grammar trees"""
     run_time=time.time()+time_limit_sec
@@ -292,7 +296,8 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
     dock_score=[]
     sascore=[]
     qedscore=[]
-    default_reward = [[0,0,0,0]]
+    default_reward = [[0,0,0]]
+    penalty_reward = [-1. , -1. , -1.]
     
     
 
@@ -305,13 +310,17 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
         """selection step"""
         node_pool=[]
         
-        
         while node.childNodes!=[]:
+            #pdb.set_trace()
             if not int(pow(node.visits +1, 0.5))==int(pow(node.visits, 0.5)):
                 break
-            node = node.Selectnode(pareto)
+            new_node = node.Selectnode(pareto)
+            if new_node == node:
+                node = new_node
+                break
+            node = new_node
             state.SelectPosition(node.position)
-        print("state position:,",state.position)
+        #print("state position:,",state.position)
 
         ## Check in next test
         
@@ -319,14 +328,14 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
             
             print("end with \\n")
             while node != None:
-                node.Update(default_reward[0])
+                node.Update(penalty_reward)
                 node = node.parentNode
             continue
         if len(state.position)>= 70:
             
             print("position bigger than 70")
             while node != None:
-                node.Update(default_reward[0])
+                node.Update(penalty_reward)
                 node = node.parentNode
             continue
         
@@ -352,72 +361,73 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
         for s in scores:
             print(s,file=f)
         f.close()
-        """backpropation step"""
         if len(node_index)==0:
             
             while node != None:
                 node.Update(default_reward[0])
                 node = node.parentNode
-        else:
-            re=[]
-            for i in range(len(node_index)):
-                m=node_index[i]
-                newflag = True
-                for j in range(len(node.childNodes)):
-                    if(node.childNodes[j].position == nodeadded[m]):
-                        newflag = False
-                        node_pool.append(node.childNodes[j])
-                if newflag:
-                    node.Addnode(nodeadded[m],state)##
-                    if len(node.childNodes) >0:
-                        node_pool.append(node.childNodes[-1])
-                
-                ##node_pool.append(node.childNodes[i])
-                f = open(dataDir+"present/depth.txt", 'a')
-                print(len(state.position),file=f)
-                ##depth.append(len(state.position))
-                ##print("current minmum score",min_score)
-                ## old
-                ##if rdock_score[i]<=min_score:
-                ##    min_score_distribution.append(rdock_score[i])
-                ##    min_score=rdock_score[i]
-                ##else:
-                ##    min_score_distribution.append(min_score)
+            continue
+        re=[]
+        for i in range(len(node_index)):
+            m=node_index[i]
+            newflag = True
+            for j in range(len(node.childNodes)):
+                if(node.childNodes[j].position == nodeadded[m]):
+                    newflag = False
+                    node_pool.append(node.childNodes[j])
+            if newflag:
+                node.Addnode(nodeadded[m],state)##
+                if len(node.childNodes) >0:
+                    node_pool.append(node.childNodes[-1])
+            
+            ##node_pool.append(node.childNodes[i])
+            f = open(dataDir+"present/depth.txt", 'a')
+            print(len(state.position),file=f)
+            ##depth.append(len(state.position))
+            ##print("current minmum score",min_score)
+            ## old
+            ##if rdock_score[i]<=min_score:
+            ##    min_score_distribution.append(rdock_score[i])
+            ##    min_score=rdock_score[i]
+            ##else:
+            ##    min_score_distribution.append(min_score)
 
-                ##re.append((-0.8*rdock_score[i])/(1+0.8*abs(rdock_score[i])))
+            ##re.append((-0.8*rdock_score[i])/(1+0.8*abs(rdock_score[i])))
 
-                ## new
-                
-                ##min_score_distribution.append(scores[i])
-                
-                ##re.append(scores[i])## todo: reward fucntion
-                ##dock_score.append(scores[i][0])
-                ##sascore.append(scores[i][1])
-                ##qedscore.append(scores[i][2])
-                '''scores[0] Docking Score'''
-                base_dock_score = 0## need set for every compound
-                scores[i][0]=-round(((scores[i][0] - base_dock_score)*0.1)/(1+abs((scores[i][0] - base_dock_score)*0.1)),3)## docking score
-                
-                '''scores[1] Log P'''
-                ##scores[i][1]=round(1-scores[i][1]/10,3)## For SA score
-                logpcenter= 1.4
-                scores[i][1] = 1 - pow((0.5*(scores[i][1]-logpcenter)),2)
-                if scores[i][1]<0:
-                    scores[i][1]=0
-                '''scores[2] QED score'''
+            ## new
+            
+            ##min_score_distribution.append(scores[i])
+            
+            ##re.append(scores[i])## todo: reward fucntion
+            ##dock_score.append(scores[i][0])
+            ##sascore.append(scores[i][1])
+            ##qedscore.append(scores[i][2])
+            '''scores[0] Docking Score'''
+            base_dock_score = 0## need set for every compound
+            scores[i][0]=-round(((scores[i][0] - base_dock_score)*0.1)/(1+abs((scores[i][0] - base_dock_score)*0.1)),3)## docking score
+            
+            '''scores[1] QED'''
+            ##scores[i][1]=round(1-scores[i][1]/10,3)## For SA score
+            #logpcenter= 1.4
+            #scores[i][1] = 1 - pow((0.5*(scores[i][1]-logpcenter)),2) ## For logP
+            #if scores[i][1]<0:
+            #    scores[i][1]=0
+            '''scores[2] etoxpred'''
 
-                if pareto.Dominated(scores[i]) == False:
-                    pareto.Update(scores[i],valid_smile[i])
-                    print("Time: ",time.asctime( time.localtime(time.time()) ))
+            if pareto.Dominated(scores[i]) == False:
+                pareto.Update(scores[i],valid_smile[i])
+                print("Time: ",time.asctime( time.localtime(time.time()) ))
 
-                re.append(scores[i])
+            re.append(scores[i])
+            
+        """backpropation step"""
 
-            for i in range(len(node_pool)):
+        for i in range(len(node_pool)):
 
-                node=node_pool[i]
-                while node != None:
-                    node.Update(re[i])
-                    node = node.parentNode
+            node=node_pool[i]
+            while node != None:
+                node.Update(re[i])
+                node = node.parentNode
                     
 
 
@@ -429,11 +439,11 @@ def MCTS(root, verbose = False, pareto=pareto(), time_limit_sec=3600*240):
         json.dump(pareto.__dict__,pareto_file, indent=4, separators=(',', ': '))
         pareto_file.close()
 
-        mct_file = open(dataDir+'present/tree.json', 'w')
+        """ mct_file = open(dataDir+'present/tree.json', 'w')
         savenodes = copy.deepcopy(rootnode)
         savenodes = savenodes.preprocess_todict()
         json.dump(savenodes.__dict__, mct_file, indent=4, separators=(',', ': '))
-        mct_file.close()
+        mct_file.close() """
 
     #print "all valid compounds:",valid_compound
     #print "all active compounds:",desired_compound
@@ -456,7 +466,7 @@ def UCTchemical(time_limit_sec=3600*240):
     time_out=one_search_start_time+60*10
     state = chemical()
     pareto_front = pareto() if isLoadTree is False else pareto.from_dict(pareto_locate)
-    best = MCTS(root = state,verbose = False,pareto=pareto_front, time_limit_sec = time_limit_sec)
+    best = MCTS(root = state,pareto=pareto_front, time_limit_sec = time_limit_sec)
 
 
     return best
