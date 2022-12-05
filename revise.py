@@ -10,22 +10,21 @@ args = parser.parse_args()
 tDir = args.targetDir
 N = args.N
 
-if False:
-    with open(tDir+'/input/python_config.json','w') as f:
-        #config = json.load(f)
-        config = dict()
-        config['isLoadTree'] = True
-        whereisParetoFile = "./present/pareto.json"
-        config['whereisRNNmodelDir'] = "./model3/"
-        config['limitTimeHours'] = 23
-        config['limitTimeMinutes'] = 0
-        config['limitTimeSeconds'] = 0
-        config['isUseeToxPred'] = True
-        config['proteinName'] = '6lu7.pdbqt' if 5<N<11 else '3zosA_prepared.pdbqt'
-        config['randomSeed'] = 333
-        config['saThreshold'] = 3.5
-        config['//'] = "eToxPred must be located in ligand_design/etoxpred_best_model.joblib"
-        json.dump(config,f, indent=4, separators=(',', ': '))
+with open(tDir+'/input/python_config.json','r+') as f:
+    #config = json.load(f)
+    config = dict()
+    config['isLoadTree'] = True
+    whereisParetoFile = "./present/pareto.json"
+    config['whereisRNNmodelDir'] = "./model3/"
+    config['limitTimeHours'] = 23
+    config['limitTimeMinutes'] = 0
+    config['limitTimeSeconds'] = 0
+    config['isUseeToxPred'] = True
+    config['proteinName'] = '6lu7.pdbqt' if 5<N<11 else '3zosA_prepared.pdbqt'
+    config['randomSeed'] = 333
+    config['saThreshold'] = 3.5
+    config['//'] = "eToxPred must be located in ligand_design/etoxpred_best_model.joblib"
+    json.dump(config,f, indent=4, separators=(',', ': '))
 
 with open(tDir+"/output/allproducts.txt","w") as f:
     f.write('')

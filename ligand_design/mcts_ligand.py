@@ -104,7 +104,7 @@ class pareto:
         print("pareto size:",len(self.front))
         print("Updated pareto front",self.front)
         
-        #self.avgcal()
+        self.avgcal()
 
     def avgcal(self):
         for i in range(len(self.avg)):
@@ -152,7 +152,6 @@ class Node:
             w.append(self.childNodes[i].wcal(pareto_front,ucb))
         m = np.amax(w)
         indices = np.nonzero(w == m)[0]
-        #pdb.set_trace()
         ind=pr.choice(indices)
         s=self.childNodes[ind]
 

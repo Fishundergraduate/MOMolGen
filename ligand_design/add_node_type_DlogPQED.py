@@ -285,30 +285,30 @@ def check_node_type(new_compound,dataDir):
             
             
             ##qedscore
-        try:
-            score[2]=round(QED.default(ko),3)
-        except:
-            score[2]=0
-        print("binding energy value: "+str(round(m,2))+'\t'+new_compound[i])
-        
-        ## eToxPred
-        ## https://github.com/pulimeng/eToxPred/blob/master/etoxpred_predict.py
-        if isUseeToxPred:
-            mol = Chem.AddHs(ko)
-            fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=1024)
-            fp_string = fp.ToBitString()
-            tmpX = np.array(list(fp_string),dtype=float)
-            tox_score = eToxPredModel.predict_proba(tmpX.reshape((1,1024)))[:,1]
-            if tox_score[0] >= 0.7:
-                continue
-            #score[2] = (1- tox_score[0])
-            #print("non tox score:",score[2])
-        
-        if m<10**10:
-            node_index.append(i)
-            valid_compound.append(new_compound[i])
-            score[0]=m # docking score
-            scores.append(score)
+            try:
+                score[2]=round(QED.default(ko),3)
+            except:
+                score[2]=0
+            print("binding energy value: "+str(round(m,2))+'\t'+new_compound[i])
+            
+            ## eToxPred
+            ## https://github.com/pulimeng/eToxPred/blob/master/etoxpred_predict.py
+            if isUseeToxPred:
+                mol = Chem.AddHs(ko)
+                fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=1024)
+                fp_string = fp.ToBitString()
+                tmpX = np.array(list(fp_string),dtype=float)
+                tox_score = eToxPredModel.predict_proba(tmpX.reshape((1,1024)))[:,1]
+                if tox_score[0] >= 0.7:
+                    continue
+                #score[2] = (1- tox_score[0])
+                #print("non tox score:",score[2])
+            
+            if m<10**10:
+                node_index.append(i)
+                valid_compound.append(new_compound[i])
+                score[0]=m # docking score
+                scores.append(score)
                 
                 
                     

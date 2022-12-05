@@ -289,15 +289,15 @@ def check_node_type(new_compound,dataDir):
         
         ##qedscore
         try:
-            score[1]=round(QED.default(ko),3)
-            #score[1]=0
+            #score[1]=round(QED.default(ko),3)
+            score[1]=0
         except:
             score[1]=0
         print("binding energy value: "+str(round(m,2))+'\t'+new_compound[i])
         
         ## eToxPred
         ## https://github.com/pulimeng/eToxPred/blob/master/etoxpred_predict.py
-        if isUseeToxPred:
+        if False:
             mol = Chem.AddHs(ko)
             fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=1024)
             fp_string = fp.ToBitString()
