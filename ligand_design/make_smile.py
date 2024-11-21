@@ -1,13 +1,13 @@
 
 import csv
-import itertools
-import operator
-import numpy as np
-import nltk
-import os
+#import itertools
+#import operator
+#import numpy as np
+#import nltk
+#import os
 from rdkit import Chem
-from rdkit.Chem import Draw
-from IPython import display
+#from rdkit.Chem import Draw
+#from IPython import display
 ##import matplotlib.pyplot as plt
 from rdkit.Chem import Descriptors
 
@@ -154,7 +154,7 @@ def zinc_data_with_bracket_original():
     sen_space=[]
     #f = open('/Users/yang/smiles.csv', 'rb')
     #f = open('/Users/yang/LSTM-chemical-project/smile_trainning.csv', 'rb')
-    f = open('../data/250k_rndm_zinc_drugs_clean.smi', 'rt')
+    f = open('./data/250k_rndm_zinc_drugs_clean.smi', 'rt')
 
     reader = csv.reader(f)
     for row in reader:
